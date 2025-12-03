@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智慧医康保险服务平台</title>
+  <!-- 引入依赖 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/element-plus@2.3.9/dist/index.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.3.9/dist/index.full.min.js"></script>
+  
+  <!-- 自定义样式 -->
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .sidebar-item-active {
+        @apply bg-blue-50 text-blue-600 border-l-4 border-blue-500;
+      }
+      .card-shadow {
+        @apply shadow-md hover:shadow-lg transition-shadow duration-300;
+      }
+    }
+  </style>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#36CFC9',
+            success: '#52C41A',
+            warning: '#FAAD14',
+            danger: '#FF4D4F',
+            gray: {
+              100: '#F5F7FA',
+              200: '#E4E7ED',
+              300: '#C0C4CC',
+              400: '#909399',
+              500: '#606266',
+              600: '#303133',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-100 font-sans text-gray-600 min-h-screen flex flex-col">
+  <div id="app" class="flex flex-col h-screen overflow-hidden">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shadow-sm z-10">
+      <div class="flex items-center">
+        <div class="text-primary text-2xl font-bold flex items-center">
+          <i class="fa fa-heartbeat mr-2"></i>
+          <span>智慧医康保险服务平台</span>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-4">
+        <el-badge :count="3" class="mr-4">
+          <el-icon class="cursor-pointer text-gray-500 hover:text-primary text-xl">
+            <i class="fa fa-bell-o"></i>
+          </el-icon>
+        </el-badge>
+        <div class="flex items-center">
+          <img src="https://picsum.photos/id/1005/40/40" alt="用户头像" class="w-8 h-8 rounded-full mr-2">
+          <span class="text-gray-600">管理员</span>
+          <el-icon class="ml-1 text-gray-400">
+            <i class="fa fa-angle-down"></i>
+          </el-icon>
+        </div>
+      </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+      <!-- 侧边栏 -->
+      <aside class="w-64 bg-white border-r border-gray-200 flex-shrink-0 overflow-y-auto">
+        <div class="p-4">
+          <div class="text-sm font-medium text-gray-400 mb-2">核心功能</div>
+          <el-menu :default-active="activeMenu" @select="activeMenu = $event" class="border-none">
+            <el-menu-item index="dashboard" class="mb-1">
+              <template #icon>
+                <i class="fa fa-tachometer text-gray-500"></i>
+              </template>
+              <span>数据概览</span>
+            </el-menu-item>
+            <el-menu-item index="drg" class="mb-1">
+              <template #icon>
+                <i class="fa fa-file-text-o text-gray-500"></i>
+              </template>
+              <span>DRG支付政策</span>
+            </el-menu-item>
+            <el-menu-item index="rehabilitation" class="mb-1">
+              <template #icon>
+                <i class="fa fa-hospital-o text-gray-500"></i>
+              </template>
+              <span>康复服务衔接</span>
+            </el-menu-item>
+            <el-menu-item index="risk-control" class="mb-1">
+              <template #icon>
+                <i class="fa fa-shield text-gray-500"></i>
+              </template>
+              <span>风控与预测</span>
+            </el-menu-item>
+            <el-menu-item index="data-management" class="mb-1">
+              <template #icon>
+                <i class="fa fa-database text-gray-500"></i>
+              </template>
+              <span>数据管理</span>
+            </el-menu-item>
+          </el-menu>
+        </div>
+        
+        <div class="p-4 border-t border-gray-200">
+          <div class="text-sm font-medium text-gray-400 mb-2">系统设置</div>
+          <el-menu :default-active="activeMenu" @select="activeMenu = $event" class="border-none">
+            <el-menu-item index="system" class="mb-1">
+              <template #icon>
+                <i class="fa fa-cog text-gray-500"></i>
+              </template>
+              <span>系统配置</span>
+            </el-menu-item>
+            <el-menu-item index="user" class="mb-1">
+              <template #icon>
+                <i class="fa fa-user-o text-gray-500"></i>
+              </template>
+              <span>用户管理</span>
+            </el-menu-item>
+            <el-menu-item index="log" class="mb-1">
+              <template #icon>
+                <i class="fa fa-history text-gray-500"></i>
+              </template>
+              <span>操作日志</span>
+            </el-menu-item>
+          </el-menu>
+        </div>
+      </aside>
+
+      <!-- 主内容区 -->
+      <main class="flex-1 overflow-y-auto p-6 bg-gray-100">
+        <!-- 数据概览页面 -->
+        <div v-if="activeMenu === 'dashboard'" class="space-y-6">
+          <div class="flex items-center justify-between mb-4">
+            <h1 class="text-2xl font-bold text-gray-600">数据概览</h1>
+            <el-date-picker
+              v-model="dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              class="w-64"
+            />
+          </div>
+
+          <!-- 核心指标卡片 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-white rounded-lg p-6 card-shadow">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gray-400 text-sm mb-1">支付效率提升</p>
+                  <h3 class="text-2xl font-bold text-gray-600">{{ dashboardData.paymentEfficiency.value }}%</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-primary">
+                  <i class="fa fa-money text-xl"></i>
+                </div>
+              </div>
+              <div class="mt-4 flex items-center text-sm">
+                <span class="text-success flex items-center">
+                  <i class="fa fa-arrow-up mr-1"></i> 较上月提升{{ dashboardData.paymentEfficiency.change }}%
+                </span>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-lg p-6 card-shadow">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gray-400 text-sm mb-1">康复衔接效率</p>
+                  <h3 class="text-2xl font-bold text-gray-600">{{ dashboardData.rehabilitationEfficiency.value }}%</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-success">
+                  <i class="fa fa-exchange text-xl"></i>
+                </div>
+              </div>
+              <div class="mt-4 flex items-center text-sm">
+                <span class="text-success flex items-center">
+                  <i class="fa fa-arrow-up mr-1"></i> 转院耗时缩短至3.5天
+                </span>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-lg p-6 card-shadow">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gray-400 text-sm mb-1">赔付率下降</p>
+                  <h3 class="text-2xl font-bold text-gray-600">{{ dashboardData.payoutRate.value }}%</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                  <i class="fa fa-line-chart text-xl"></i>
+                </div>
+              </div>
+              <div class="mt-4 flex items-center text-sm">
+                <span class="text-success flex items-center">
+                  <i class="fa fa-arrow-down mr-1"></i> 较行业平均低{{ Math.abs(dashboardData.payoutRate.change) }}%
+                </span>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-lg p-6 card-shadow">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gray-400 text-sm mb-1">门诊结算时间</p>
+                  <h3 class="text-2xl font-bold text-gray-600">{{ dashboardData.settlementTime.value }}秒</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                  <i class="fa fa-clock-o text-xl"></i>
+                </div>
+              </div>
+              <div class="mt-4 flex items-center text-sm">
+                <span class="text-success flex items-center">
+                  <i class="fa fa-arrow-down mr-1"></i> 替代传统10-15分钟
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 图表区域 -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg p-6 card-shadow">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-600">医保费用趋势</h3>
+                <el-select v-model="feeType" size="small" class="w-32">
+                  <el-option label="月度" value="month"></el-option>
+                  <el-option label="季度" value="quarter"></el-option>
+                  <el-option label="年度" value="year"></el-option>
+                </el-select>
+              </div>
+              <div id="feeTrendChart" class="w-full h-64"></div>
+            </div>
+
+            <div class="bg-white rounded-lg p-6 card-shadow">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-600">风控预警分布</h3>
+                <el-button type="text" size="small" class="text-primary">
+                  查看详情 <i class="fa fa-angle-right ml-1"></i>
+                </el-button>
+              </div>
+              <div id="riskDistributionChart" class="w-full h-64"></div>
+            </div>
+          </div>
+
+          <!-- 最近预警列表 -->
+          <div class="bg-white rounded-lg p-6 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-gray-600">最近风控预警</h3>
+              <el-button type="primary" size="small" @click="refreshWarnings">
+                <i class="fa fa-refresh mr-1"></i> 刷新
+              </el-button>
+            </div>
+            <el-table :data="warningList" border stripe :header-cell-style="{background: '#f5f7fa'}">
+              <el-table-column prop="id" label="预警ID" width="100"></el-table-column>
+              <el-table-column prop="hospital" label="医院名称"></el-table-column>
+              <el-table-column prop="type" label="预警类型" width="120">
+                <template #default="scope">
+                  <el-tag :type="scope.row.type === '欺诈风险' ? 'danger' : 'warning'">
+                    {{ scope.row.type }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="amount" label="涉及金额" width="120"></el-table-column>
+              <el-table-column prop="time" label="预警时间" width="180"></el-table-column>
+              <el-table-column prop="status" label="处理状态" width="120">
+                <template #default="scope">
+                  <el-tag :type="scope.row.status === '已处理' ? 'success' : 'info'">
+                    {{ scope.row.status }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="120">
+                <template #default>
+                  <el-button type="text" size="small" class="text-primary">查看</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- DRG支付政策页面 -->
+        <div v-if="activeMenu === 'drg'" class="space-y-6">
+          <div class="flex items-center justify-between mb-4">
+            <h1 class="text-2xl font-bold text-gray-600">DRG支付政策管理</h1>
+            <el-button type="primary">
+              <i class="fa fa-plus mr-1"></i> 新增政策
+            </el-button>
+          </div>
+
+          <div class="bg-white rounded-lg p-6 card-shadow">
+            <div class="flex flex-wrap gap-4 mb-6">
+              <el-input v-model="drgSearch" placeholder="搜索DRG组/诊断名称" class="w-64"></el-input>
+              <el-select v-model="drgStatus" placeholder="选择状态" class="w-32">
+                <el-option label="全部" value=""></el-option>
+                <el-option label="启用" value="1"></el-option>
+                <el-option label="禁用" value="0"></el-option>
+              </el-select>
+              <el-button type="primary" @click="handleDrgSearch">搜索</el-button>
+              <el-button type="default" @click="handleDrgReset">重置</el-button>
+            </div>
+
+            <el-table :data="drgList" border stripe :header-cell-style="{background: '#f5f7fa'}">
+              <el-table-column prop="drgCode" label="DRG组编码" width="120"></el-table-column>
+              <el-table-column prop="drgName" label="DRG组名称"></el-table-column>
+              <el-table-column prop="diagnosis" label="适用诊断"></el-table-column>
+              <el-table-column prop="paymentStandard" label="支付标准" width="120"></el-table-column>
+              <el-table-column prop="effectiveDate" label="生效日期" width="150"></el-table-column>
+              <el-table-column prop="status" label="状态" width="100">
+                <template #default="scope">
+                  <el-switch v-model="scope.row.status" active-value="1" inactive-value="0" disabled></el-switch>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="180">
+                <template #default="scope">
+                  <el-button type="text" size="small" class="text-primary" @click="handleDrgEdit(scope.row)">编辑</el-button>
+                  <el-button type="text" size="small" class="text-danger" @click="handleDrgDelete(scope.row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <div class="mt-4 flex justify-center">
+              <el-pagination
+                @size-change="handleSizeChange"
+                @current-change="handleCurrentChange"
+                :current-page="drgCurrentPage"
+                :page-sizes="[10, 20, 50, 100]"
+                :page-size="drgPageSize"
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="drgTotal"
+              ></el-pagination>
+            </div>
+          </div>
+
+          <!-- DRG分组统计 -->
+          <div class="bg-white rounded-lg p-6 card-shadow">
+            <h3 class="font-semibold text-gray-600 mb-4">DRG分组统计</h3>
+            <div id="drgGroupChart" class="w-full h-64"></div>
+          </div>
+        </div>
+
+        <!-- 康复服务衔接页面 -->
+        <div v-if="activeMenu === 'rehabilitation'" class="space-y-6">
+          <div class="flex items-center justify-between mb-4">
+            <h1 class="text-2xl font-bold text-gray-600">康复服务衔接管理</h1>
+            <el-button type="primary">
+              <i class="fa fa-plus mr-1"></i> 新增康复机构
+            </el-button>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-white rounded-lg p-6 card-shadow lg:col-span-1">
+              <h3 class="font-semibold text-gray-600 mb-4">转院申请统计</h3>
+              <div id="transferApplyChart" class="w-full h-48"></div>
+              <div class="mt-6 space-y-4">
+                <div>
+                  <p class="text-sm text-gray-400 mb-1">今日申请数</p>
+                  <h4 class="text-xl font-bold text-gray-600">{{ transferStats.today }}</h4>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-400 mb-1">本周申请数</p>
+                  <h4 class="text-xl font-bold text-gray-600">{{ transferStats.week }}</h4>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-400 mb-1">本月申请数</p>
+                  <h4 class="text-xl font-bold text-gray-600">{{ transferStats.month }}</h4>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-lg p-6 card-shadow lg:col-span-2">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-600">康复机构列表</h3>
+                <el-input v-model="rehabSearch" placeholder="搜索机构名称" class="w-48"></el-input>
+              </div>
+              <el-table :data="rehabList" border stripe :header-cell-style="{background: '#f5f7fa'}">
+                <el-table-column prop="name" label="机构名称"></el-table-column>
+                <el-table-column prop="level" label="机构等级" width="120"></el-table-column>
+                <el-table-column prop="bedCount" label="床位数" width="100"></el-table-column>
+                <el-table-column prop="specialty" label="擅长领域"></el-table-column>
+                <el-table-column prop="status" label="状态" width="100">
+                  <template #default="scope">
+                    <el-tag :type="scope.row.status === '营业中' ? 'success' : 'danger'">
+                      {{ scope.row.status }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="120">
+                  <template #default>
+                    <el-button type="text" size="small" class="text-primary">详情</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
+
+          <!-- 转院申请处理 -->
+          <div class="bg-white rounded-lg p-6 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-gray-600">待处理转院申请</h3>
+              <el-select v-model="transferStatus" placeholder="选择状态" class="w-32">
+                <el-option label="全部" value=""></el-option>
+                <el-option label="待审核" value="pending"></el-option>
+                <el-option label="已通过" value="approved"></el-option>
+                <el-option label="已拒绝" value="rejected"></el-option>
+              </el-select>
+            </div>
+            <el-table :data="transferList" border stripe :header-cell-style="{background: '#f5f7fa'}">
+              <el-table-column prop="applyNo" label="申请单号" width="150"></el-table-column>
+              <el-table-column prop="patientName" label="患者姓名" width="100"></el-table-column>
+              <el-table-column prop="fromHospital" label="转出医院"></el-table-column>
+              <el-table-column prop="toHospital" label="转入机构"></el-table-column>
+              <el-table-column prop="disease" label="疾病诊断"></el-table-column>
+              <el-table-column prop="applyTime" label="申请时间" width="180"></el-table-column>
+              <el-table-column label="操作" width="180">
+                <template #default="scope">
+                  <el-button type="text" size="small" class="text-success" @click="handleTransferApprove(scope.row)">通过</el-button>
+                  <el-button type="text" size="small" class="text-danger" @click="handleTransferReject(scope.row)">拒绝</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- 风控与预测页面 -->
+        <div v-if="activeMenu === 'risk-control'" class="space-y-6">
+          <div class="flex items-center justify-between mb-4">
+            <h1 class="text-2xl font-bold text-gray-600">风控与预测管理</h1>
+            <el-button type="primary">
+              <i class="fa fa-cog mr-1"></i> 模型配置
+            </el-button>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-white rounded-lg p-6 card-shadow">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-600">风控概览</h3>
+                <span class="text-sm text-gray-400">模型版本：v2.3.1</span>
+              </div>
+              <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-600">召回率</span>
+                  <span class="text-xl font-bold text-primary">{{ riskOverview.recall }}%</span>
+                </div>
+                <el-progress :percentage="riskOverview.recall" :stroke-width="6" color="#165DFF"></el-progress>
+                
+                <div class="flex justify-between items-center mt-6">
+                  <span class="text-gray-600">误报率</span>
+                  <span class="text-xl font-bold text-warning">{{ riskOverview.falsePositive }}%</span>
+                </div>
+                <el-progress :percentage="riskOverview.falsePositive" :stroke-width="6" color="#FAAD14"></el-progress>
+                
+                <div class="flex justify-between items-center mt-6">
+                  <span class="text-gray-600">拦截成功率</span>
+                  <span class="text-xl font-bold text-success">{{ riskOverview.success }}%</span>
+                </div>
+                <el-progress :percentage="riskOverview.success" :stroke-width="6" color="#52C41A"></el-progress>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-lg p-6 card-shadow">
+              <h3 class="font-semibold text-gray-600 mb-4">风险类型分布</h3>
+              <div id="riskTypeChart" class="w-full h-64"></div>
+            </div>
+
+            <div class="bg-white rounded-lg p-6 card-shadow">
+              <h3 class="font-semibold text-gray-600 mb-4">风险等级分布</h3>
+              <div id="riskLevelChart" class="w-full h-64"></div>
+            </div>
+          </div>
+
+          <!-- 风险事件列表 -->
+          <div class="bg-white rounded-lg p-6 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-gray-600">风险事件记录</h3>
+              <div class="flex gap-2">
+                <el-input v-model="riskSearch" placeholder="搜索患者/医院" class="w-48"></el-input>
+                <el-select v-model="riskLevel" placeholder="风险等级" class="w-24">
+                  <el-option label="全部" value=""></el-option>
+                  <el-option label="高" value="high"></el-option>
+                  <el-option label="中" value="medium"></el-option>
+                  <el-option label="低" value="low"></el-option>
+                </el-select>
+                <el-button type="primary">搜索</el-button>
+              </div>
+            </div>
+            <el-table :data="riskEventList" border stripe :header-cell-style="{background: '#f5f7fa'}">
+              <el-table-column prop="eventId" label="事件ID" width="120"></el-table-column>
+              <el-table-column prop="patientName" label="患者姓名" width="100"></el-table-column>
+              <el-table-column prop="hospital" label="医院名称"></el-table-column>
+              <el-table-column prop="riskType" label="风险类型" width="120"></el-table-column>
+              <el-table-column prop="riskLevel" label="风险等级" width="100">
+                <template #default="scope">
+                  <el-tag :type="scope.row.riskLevel === '高' ? 'danger' : scope.row.riskLevel === '中' ? 'warning' : 'info'">
+                    {{ scope.row.riskLevel }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="eventTime" label="发生时间" width="180"></el-table-column>
+              <el-table-column prop="handleStatus" label="处理状态" width="120">
+                <template #default="scope">
+                  <el-tag :type="scope.row.handleStatus === '已处理' ? 'success' : 'info'">
+                    {{ scope.row.handleStatus }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="120">
+                <template #default>
+                  <el-button type="text" size="small" class="text-primary">详情</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- 其他页面占位 -->
+        <div v-if="activeMenu === 'data-management' || activeMenu === 'system' || activeMenu === 'user' || activeMenu === 'log'" class="flex items-center justify-center h-64 bg-white rounded-lg">
+          <div class="text-center">
+            <i class="fa fa-file-text-o text-gray-300 text-5xl mb-4"></i>
+            <p class="text-gray-400">该页面功能正在开发中...</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, onMounted, watch, nextTick } = Vue;
+    const { ElMessage, ElMessageBox } = ElementPlus;
+    
+    // API基础配置
+    const API_BASE_URL = 'http://localhost:3000/api';
+    
+    // API请求工具函数
+    const api = {
+      async get(url) {
+        try {
+          const response = await fetch(`${API_BASE_URL}${url}`);
+          const data = await response.json();
+          if (data.code === 200) {
+            return data.data;
+          } else {
+            ElMessage.error(data.message || '请求失败');
+            return null;
+          }
+        } catch (error) {
+          ElMessage.error('网络请求失败');
+          console.error(error);
+          return null;
+        }
+      },
+      async post(url, body) {
+        try {
+          const response = await fetch(`${API_BASE_URL}${url}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const data = await response.json();
+          if (data.code === 200) {
+            return data.data;
+          } else {
+            ElMessage.error(data.message || '操作失败');
+            return null;
+          }
+        } catch (error) {
+          ElMessage.error('网络请求失败');
+          console.error(error);
+          return null;
+        }
+      },
+      async put(url, body) {
+        try {
+          const response = await fetch(`${API_BASE_URL}${url}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const data = await response.json();
+          if (data.code === 200) {
+            return data.data;
+          } else {
+            ElMessage.error(data.message || '操作失败');
+            return null;
+          }
+        } catch (error) {
+          ElMessage.error('网络请求失败');
+          console.error(error);
+          return null;
+        }
+      },
+      async delete(url) {
+        try {
+          const response = await fetch(`${API_BASE_URL}${url}`, {
+            method: 'DELETE'
+          });
+          const data = await response.json();
+          if (data.code === 200) {
+            return data.data;
+          } else {
+            ElMessage.error(data.message || '删除失败');
+            return null;
+          }
+        } catch (error) {
+          ElMessage.error('网络请求失败');
+          console.error(error);
+          return null;
+        }
+      }
+    };
+    
+    const app = createApp({
+      setup() {
+        // 状态管理
+        const activeMenu = ref('dashboard');
+        const dateRange = ref([]);
+        const feeType = ref('month');
+        const loading = ref(false);
+        
+        // 数据概览
+        const dashboardData = ref({
+          paymentEfficiency: { value: 30, change: 5 },
+          rehabilitationEfficiency: { value: 25, change: 0 },
+          payoutRate: { value: 11, change: -8 },
+          settlementTime: { value: 0.7, change: 0 }
+        });
+        
+        // DRG页面状态
+        const drgSearch = ref('');
+        const drgStatus = ref('');
+        const drgCurrentPage = ref(1);
+        const drgPageSize = ref(10);
+        const drgTotal = ref(0);
+        const drgList = ref([]);
+        
+        // 康复服务页面状态
+        const rehabSearch = ref('');
+        const transferStatus = ref('');
+        const rehabList = ref([]);
+        const transferList = ref([]);
+        const transferStats = ref({ today: 0, week: 0, month: 0 });
+        
+        // 风控页面状态
+        const riskSearch = ref('');
+        const riskLevel = ref('');
+        const riskEventList = ref([]);
+        const riskOverview = ref({ recall: 92, falsePositive: 12, success: 88 });
+        
+        // 预警列表数据
+        const warningList = ref([]);
+        
+        // 图表实例
+        const chartInstances = ref({});
+        
+        // 加载数据概览
+        const loadDashboard = async () => {
+          loading.value = true;
+          try {
+            const data = await api.get('/dashboard/overview');
+            if (data) {
+              dashboardData.value = data.metrics || dashboardData.value;
+              warningList.value = data.warnings || [];
+            }
+            await nextTick();
+            initDashboardCharts();
+          } finally {
+            loading.value = false;
+          }
+        };
+        
+        // 加载DRG列表
+        const loadDrgList = async () => {
+          loading.value = true;
+          try {
+            const params = new URLSearchParams({
+              page: drgCurrentPage.value,
+              pageSize: drgPageSize.value,
+              search: drgSearch.value,
+              status: drgStatus.value
+            });
+            const data = await api.get(`/drg?${params}`);
+            if (data) {
+              drgList.value = data.list || [];
+              drgTotal.value = data.total || 0;
+            }
+            await nextTick();
+            initDrgChart();
+          } finally {
+            loading.value = false;
+          }
+        };
+        
+        // 加载康复机构列表
+        const loadRehabList = async () => {
+          const data = await api.get('/rehabilitation/institutions');
+          if (data) {
+            rehabList.value = data.list || [];
+          }
+        };
+        
+        // 加载转院申请
+        const loadTransferList = async () => {
+          loading.value = true;
+          try {
+            const params = new URLSearchParams({
+              status: transferStatus.value
+            });
+            const data = await api.get(`/rehabilitation/transfers?${params}`);
+            if (data) {
+              transferList.value = data.list || [];
+              transferStats.value = data.stats || transferStats.value;
+            }
+            await nextTick();
+            initTransferChart();
+          } finally {
+            loading.value = false;
+          }
+        };
+        
+        // 加载风控数据
+        const loadRiskData = async () => {
+          loading.value = true;
+          try {
+            const params = new URLSearchParams({
+              search: riskSearch.value,
+              level: riskLevel.value
+            });
+            const data = await api.get(`/risk/events?${params}`);
+            if (data) {
+              riskEventList.value = data.list || [];
+              riskOverview.value = data.overview || riskOverview.value;
+            }
+            await nextTick();
+            initRiskCharts();
+          } finally {
+            loading.value = false;
+          }
+        };
+        
+        // 刷新预警列表
+        const refreshWarnings = async () => {
+          await loadDashboard();
+          ElMessage.success('刷新成功');
+        };
+        
+        // DRG操作
+        const handleDrgSearch = () => {
+          drgCurrentPage.value = 1;
+          loadDrgList();
+        };
+        
+        const handleDrgReset = () => {
+          drgSearch.value = '';
+          drgStatus.value = '';
+          drgCurrentPage.value = 1;
+          loadDrgList();
+        };
+        
+        const handleDrgEdit = (row) => {
+          ElMessage.info('编辑功能开发中');
+        };
+        
+        const handleDrgDelete = async (row) => {
+          try {
+            await ElMessageBox.confirm('确定要删除这条DRG政策吗？', '提示', {
+              type: 'warning'
+            });
+            const result = await api.delete(`/drg/${row.id}`);
+            if (result !== null) {
+              ElMessage.success('删除成功');
+              loadDrgList();
+            }
+          } catch (e) {
+            // 用户取消
+          }
+        };
+        
+        // 转院申请操作
+        const handleTransferApprove = async (row) => {
+          try {
+            await ElMessageBox.confirm('确定要通过这个转院申请吗？', '提示', {
+              type: 'warning'
+            });
+            const result = await api.put(`/rehabilitation/transfers/${row.id}/approve`);
+            if (result !== null) {
+              ElMessage.success('操作成功');
+              loadTransferList();
+            }
+          } catch (e) {
+            // 用户取消
+          }
+        };
+        
+        const handleTransferReject = async (row) => {
+          try {
+            await ElMessageBox.confirm('确定要拒绝这个转院申请吗？', '提示', {
+              type: 'warning'
+            });
+            const result = await api.put(`/rehabilitation/transfers/${row.id}/reject`);
+            if (result !== null) {
+              ElMessage.success('操作成功');
+              loadTransferList();
+            }
+          } catch (e) {
+            // 用户取消
+          }
+        };
+        
+        // 方法
+        const handleSizeChange = (val) => {
+          drgPageSize.value = val;
+          loadDrgList();
+        };
+        
+        const handleCurrentChange = (val) => {
+          drgCurrentPage.value = val;
+          loadDrgList();
+        };
+        
+        // 初始化数据概览图表
+        const initDashboardCharts = async () => {
+          const feeData = await api.get('/dashboard/fee-trend?type=' + feeType.value);
+          
+          // 医保费用趋势图
+          const feeTrendEl = document.getElementById('feeTrendChart');
+          if (feeTrendEl && !chartInstances.value.feeTrend) {
+            chartInstances.value.feeTrend = echarts.init(feeTrendEl);
+          }
+          if (chartInstances.value.feeTrend) {
+            const chartData = feeData || {
+              months: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月'],
+              total: [1200, 1350, 1500, 1420, 1600, 1750, 1820, 1900, 2050],
+              medical: [850, 950, 1050, 980, 1120, 1230, 1280, 1350, 1450],
+              personal: [350, 400, 450, 440, 480, 520, 540, 550, 600]
+            };
+            chartInstances.value.feeTrend.setOption({
+              tooltip: { trigger: 'axis' },
+              legend: { data: ['医保支付', '个人支付', '总费用'], top: 0 },
+              grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+              xAxis: { type: 'category', data: chartData.months },
+              yAxis: { type: 'value', name: '万元' },
+              series: [
+                {
+                  name: '总费用',
+                  type: 'line',
+                  data: chartData.total,
+                  smooth: true,
+                  lineStyle: { color: '#165DFF' },
+                  itemStyle: { color: '#165DFF' }
+                },
+                {
+                  name: '医保支付',
+                  type: 'line',
+                  data: chartData.medical,
+                  smooth: true,
+                  lineStyle: { color: '#36CFC9' },
+                  itemStyle: { color: '#36CFC9' }
+                },
+                {
+                  name: '个人支付',
+                  type: 'line',
+                  data: chartData.personal,
+                  smooth: true,
+                  lineStyle: { color: '#FAAD14' },
+                  itemStyle: { color: '#FAAD14' }
+                }
+              ]
+            });
+          }
+          
+          // 风控预警分布图
+          const riskDistEl = document.getElementById('riskDistributionChart');
+          if (riskDistEl && !chartInstances.value.riskDistribution) {
+            chartInstances.value.riskDistribution = echarts.init(riskDistEl);
+          }
+          if (chartInstances.value.riskDistribution) {
+            const riskData = await api.get('/dashboard/risk-distribution');
+            const chartData = riskData || [
+              { value: 35, name: '虚假住院' },
+              { value: 45, name: '异常费用' },
+              { value: 15, name: '过度医疗' },
+              { value: 5, name: '其他欺诈' }
+            ];
+            chartInstances.value.riskDistribution.setOption({
+              tooltip: { trigger: 'item' },
+              legend: { top: '5%', left: 'center' },
+              series: [{
+                name: '预警类型',
+                type: 'pie',
+                radius: ['40%', '70%'],
+                avoidLabelOverlap: false,
+                itemStyle: {
+                  borderRadius: 10,
+                  borderColor: '#fff',
+                  borderWidth: 2
+                },
+                label: { show: false, position: 'center' },
+                emphasis: {
+                  label: { show: true, fontSize: 16, fontWeight: 'bold' }
+                },
+                labelLine: { show: false },
+                data: chartData
+              }]
+            });
+          }
+        };
+        
+        // 初始化DRG图表
+        const initDrgChart = async () => {
+          const drgEl = document.getElementById('drgGroupChart');
+          if (drgEl && !chartInstances.value.drgGroup) {
+            chartInstances.value.drgGroup = echarts.init(drgEl);
+          }
+          if (chartInstances.value.drgGroup) {
+            const data = await api.get('/drg/statistics');
+            const chartData = data || {
+              codes: ['MDC01', 'MDC02', 'MDC03', 'MDC04', 'MDC05', 'MDC06', 'MDC07', 'MDC08'],
+              counts: [1200, 1500, 1800, 2100, 1600, 1300, 900, 700]
+            };
+            chartInstances.value.drgGroup.setOption({
+              tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+              grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+              xAxis: { type: 'category', data: chartData.codes },
+              yAxis: { type: 'value', name: '例' },
+              series: [{
+                name: '病例数',
+                type: 'bar',
+                data: chartData.counts,
+                itemStyle: {
+                  color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    { offset: 0, color: '#165DFF' },
+                    { offset: 1, color: '#36CFC9' }
+                  ])
+                }
+              }]
+            });
+          }
+        };
+        
+        // 初始化转院申请图表
+        const initTransferChart = async () => {
+          const transferEl = document.getElementById('transferApplyChart');
+          if (transferEl && !chartInstances.value.transferApply) {
+            chartInstances.value.transferApply = echarts.init(transferEl);
+          }
+          if (chartInstances.value.transferApply) {
+            const data = await api.get('/rehabilitation/transfer-stats');
+            const chartData = data || [
+              { value: 65, name: '待审核' },
+              { value: 25, name: '已通过' },
+              { value: 10, name: '已拒绝' }
+            ];
+            chartInstances.value.transferApply.setOption({
+              tooltip: { trigger: 'item' },
+              series: [{
+                name: '申请状态',
+                type: 'doughnut',
+                radius: ['50%', '70%'],
+                data: chartData,
+                itemStyle: {
+                  borderRadius: 8
+                },
+                color: ['#165DFF', '#52C41A', '#FF4D4F']
+              }]
+            });
+          }
+        };
+        
+        // 初始化风控图表
+        const initRiskCharts = async () => {
+          // 风险类型分布图
+          const riskTypeEl = document.getElementById('riskTypeChart');
+          if (riskTypeEl && !chartInstances.value.riskType) {
+            chartInstances.value.riskType = echarts.init(riskTypeEl);
+          }
+          if (chartInstances.value.riskType) {
+            const typeData = await api.get('/risk/type-distribution');
+            const chartData = typeData || [
+              { value: 40, name: '虚假住院' },
+              { value: 30, name: '过度医疗' },
+              { value: 20, name: '重复收费' },
+              { value: 10, name: '其他' }
+            ];
+            chartInstances.value.riskType.setOption({
+              tooltip: { trigger: 'item' },
+              legend: { top: 'bottom' },
+              series: [{
+                name: '风险类型',
+                type: 'pie',
+                radius: ['40%', '60%'],
+                data: chartData,
+                itemStyle: {
+                  color: function(params) {
+                    const colors = ['#FF4D4F', '#FAAD14', '#165DFF', '#36CFC9'];
+                    return colors[params.dataIndex % colors.length];
+                  }
+                }
+              }]
+            });
+          }
+          
+          // 风险等级分布图
+          const riskLevelEl = document.getElementById('riskLevelChart');
+          if (riskLevelEl && !chartInstances.value.riskLevel) {
+            chartInstances.value.riskLevel = echarts.init(riskLevelEl);
+          }
+          if (chartInstances.value.riskLevel) {
+            const levelData = await api.get('/risk/level-distribution');
+            const chartData = levelData || {
+              levels: ['高风险', '中风险', '低风险'],
+              counts: [120, 350, 580]
+            };
+            chartInstances.value.riskLevel.setOption({
+              tooltip: { trigger: 'axis' },
+              grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+              xAxis: { type: 'category', data: chartData.levels },
+              yAxis: { type: 'value', name: '件' },
+              series: [{
+                name: '风险事件数',
+                type: 'bar',
+                barWidth: '60%',
+                data: chartData.counts,
+                itemStyle: {
+                  color: function(params) {
+                    const colors = ['#FF4D4F', '#FAAD14', '#52C41A'];
+                    return colors[params.dataIndex];
+                  }
+                }
+              }]
+            });
+          }
+        };
+        
+        // 窗口大小变化时重绘图表
+        const resizeCharts = () => {
+          Object.values(chartInstances.value).forEach(chart => {
+            if (chart) chart.resize();
+          });
+        };
+        
+        // 监听菜单切换
+        watch(activeMenu, (newVal) => {
+          nextTick(() => {
+            if (newVal === 'dashboard') {
+              loadDashboard();
+            } else if (newVal === 'drg') {
+              loadDrgList();
+            } else if (newVal === 'rehabilitation') {
+              loadRehabList();
+              loadTransferList();
+            } else if (newVal === 'risk-control') {
+              loadRiskData();
+            }
+          });
+        });
+        
+        // 监听费用类型变化
+        watch(feeType, () => {
+          if (activeMenu.value === 'dashboard') {
+            initDashboardCharts();
+          }
+        });
+        
+        // 初始化
+        onMounted(() => {
+          loadDashboard();
+          window.addEventListener('resize', resizeCharts);
+        });
+        
+        return {
+          activeMenu,
+          dateRange,
+          feeType,
+          loading,
+          dashboardData,
+          drgSearch,
+          drgStatus,
+          drgCurrentPage,
+          drgPageSize,
+          drgTotal,
+          drgList,
+          rehabSearch,
+          transferStatus,
+          rehabList,
+          transferList,
+          transferStats,
+          riskSearch,
+          riskLevel,
+          riskEventList,
+          riskOverview,
+          warningList,
+          loadDashboard,
+          refreshWarnings,
+          handleDrgSearch,
+          handleDrgReset,
+          handleDrgEdit,
+          handleDrgDelete,
+          handleTransferApprove,
+          handleTransferReject,
+          handleSizeChange,
+          handleCurrentChange
+        };
+      }
+    });
+    
+    // 全局注册Element Plus组件
+    app.use(ElementPlus);
+    app.mount('#app');
+  </script>
+</body>
+</html>
