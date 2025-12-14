@@ -974,10 +974,41 @@
             const params = new URLSearchParams({
               status: transferStatus.value
             });
-            const data = await api.get(`/rehabilitation/transfers?${params}`);
+            const data = await api.get(`/transfer/applications?${params}`);
             if (data) {
-              transferList.value = data.list || [];
-              transferStats.value = data.stats || transferStats.value;
+              // 格式化数据以匹配表格
+              transferList.value = (data.list || []).map(item => ({
+                id: item.id,
+                applyNo: item.apply_no,
+                patientName: item.patient_name,
+                fromHospital: item.from_hospital,
+                toHospital: item.to_hospital || item.to_hospital_name,
+                disease: item.disease,
+                applyTime: item.apply_time,
+                status: item.status,
+                adminComment: item.admin_comment
+              }));
+              // 统计信息
+              const all = data.list || [];
+              transferStats.value = {
+                today: all.filter(a => {
+                  const date = new Date(a.apply_time);
+                  const today = new Date();
+                  return date.toDateString() === today.toDateString();
+                }).length,
+                week: all.filter(a => {
+                  const date = new Date(a.apply_time);
+                  const weekAgo = new Date();
+                  weekAgo.setDate(weekAgo.getDate() - 7);
+                  return date >= weekAgo;
+                }).length,
+                month: all.filter(a => {
+                  const date = new Date(a.apply_time);
+                  const monthAgo = new Date();
+                  monthAgo.setMonth(monthAgo.getMonth() - 1);
+                  return date >= monthAgo;
+                }).length
+              };
             }
             await nextTick();
             initTransferChart();
@@ -1047,31 +1078,54 @@
         // 转院申请操作
         const handleTransferApprove = async (row) => {
           try {
-            await ElMessageBox.confirm('确定要通过这个转院申请吗？', '提示', {
-              type: 'warning'
+            const { value } = await ElMessageBox.prompt('请输入审批备注（可选）', '批准申请', {
+              confirmButtonText: '确定',
+              cancelButtonText: '取消',
+              inputType: 'textarea',
+              inputPlaceholder: '请输入审批备注（可选）',
+              inputValidator: () => true
+            }).catch(() => ({ value: '' }));
+            
+            const result = await api.put(`/transfer/applications/${row.id}/approve`, { 
+              adminComment: value || '申请已批准' 
             });
-            const result = await api.put(`/rehabilitation/transfers/${row.id}/approve`);
             if (result !== null) {
-              ElMessage.success('操作成功');
+              ElMessage.success('申请已批准');
               loadTransferList();
             }
           } catch (e) {
-            // 用户取消
+            if (e !== 'cancel') {
+              console.error('批准申请失败:', e);
+            }
           }
         };
         
         const handleTransferReject = async (row) => {
           try {
-            await ElMessageBox.confirm('确定要拒绝这个转院申请吗？', '提示', {
-              type: 'warning'
+            const { value } = await ElMessageBox.prompt('请输入拒绝原因', '拒绝申请', {
+              confirmButtonText: '确定',
+              cancelButtonText: '取消',
+              inputType: 'textarea',
+              inputPlaceholder: '请输入拒绝原因',
+              inputValidator: (val) => {
+                if (!val || val.trim() === '') {
+                  return '拒绝原因不能为空';
+                }
+                return true;
+              }
             });
-            const result = await api.put(`/rehabilitation/transfers/${row.id}/reject`);
+            
+            const result = await api.put(`/transfer/applications/${row.id}/reject`, { 
+              adminComment: value 
+            });
             if (result !== null) {
-              ElMessage.success('操作成功');
+              ElMessage.success('申请已拒绝');
               loadTransferList();
             }
           } catch (e) {
-            // 用户取消
+            if (e !== 'cancel') {
+              console.error('拒绝申请失败:', e);
+            }
           }
         };
         

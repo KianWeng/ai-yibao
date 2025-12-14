@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注册 - 智慧医康保险服务平台</title>
+  <!-- 引入依赖 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/element-plus@2.3.9/dist/index.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.3.9/dist/index.full.min.js"></script>
+  
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="w-full max-w-md px-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-8">
+      <!-- Logo和标题 -->
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+          <i class="fa fa-heartbeat text-blue-600 text-3xl"></i>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">用户注册</h1>
+        <p class="text-gray-500">创建您的账户</p>
+      </div>
+
+      <!-- 注册表单 -->
+      <el-form
+        ref="registerFormRef"
+        :model="registerForm"
+        :rules="registerRules"
+        label-position="top"
+        class="register-form"
+      >
+        <el-form-item label="用户名" prop="username">
+          <el-input
+            v-model="registerForm.username"
+            placeholder="请输入用户名（4-20个字符）"
+            size="large"
+            clearable
+          >
+            <template #prefix>
+              <i class="fa fa-user text-gray-400"></i>
+            </template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item label="密码" prop="password">
+          <el-input
+            v-model="registerForm.password"
+            type="password"
+            placeholder="请输入密码（至少6位）"
+            size="large"
+            show-password
+            clearable
+          >
+            <template #prefix>
+              <i class="fa fa-lock text-gray-400"></i>
+            </template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item label="确认密码" prop="confirmPassword">
+          <el-input
+            v-model="registerForm.confirmPassword"
+            type="password"
+            placeholder="请再次输入密码"
+            size="large"
+            show-password
+            clearable
+          >
+            <template #prefix>
+              <i class="fa fa-lock text-gray-400"></i>
+            </template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item label="真实姓名" prop="realName">
+          <el-input
+            v-model="registerForm.realName"
+            placeholder="请输入真实姓名"
+            size="large"
+            clearable
+          >
+            <template #prefix>
+              <i class="fa fa-id-card text-gray-400"></i>
+            </template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item label="身份证号" prop="idCard">
+          <el-input
+            v-model="registerForm.idCard"
+            placeholder="请输入身份证号"
+            size="large"
+            clearable
+            maxlength="18"
+          >
+            <template #prefix>
+              <i class="fa fa-credit-card text-gray-400"></i>
+            </template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item label="联系电话" prop="phone">
+          <el-input
+            v-model="registerForm.phone"
+            placeholder="请输入联系电话"
+            size="large"
+            clearable
+            maxlength="11"
+          >
+            <template #prefix>
+              <i class="fa fa-phone text-gray-400"></i>
+            </template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item>
+          <el-checkbox v-model="agreeTerms">
+            我已阅读并同意
+            <el-link type="primary" :underline="false">《用户协议》</el-link>
+            和
+            <el-link type="primary" :underline="false">《隐私政策》</el-link>
+          </el-checkbox>
+        </el-form-item>
+
+        <el-form-item>
+          <el-button
+            type="primary"
+            size="large"
+            :loading="loading"
+            @click="handleRegister"
+            class="w-full"
+          >
+            {{ loading ? '注册中...' : '注册' }}
+          </el-button>
+        </el-form-item>
+      </el-form>
+
+      <!-- 登录链接 -->
+      <div class="mt-6 text-center text-sm">
+        <span class="text-gray-500">已有账户？</span>
+        <el-link type="primary" :underline="false" @click="goToLogin">
+          立即登录
+        </el-link>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive } = Vue;
+    const { ElMessage } = ElementPlus;
+    
+    // API基础配置
+    const API_BASE_URL = 'http://zephyr-w.online:3000/api';
+    
+    const app = createApp({
+      setup() {
+        const registerFormRef = ref(null);
+        const loading = ref(false);
+        const agreeTerms = ref(false);
+        
+        const registerForm = reactive({
+          username: '',
+          password: '',
+          confirmPassword: '',
+          realName: '',
+          idCard: '',
+          phone: ''
+        });
+        
+        // 验证用户名
+        const validateUsername = (rule, value, callback) => {
+          if (!value) {
+            callback(new Error('请输入用户名'));
+          } else if (value.length < 4 || value.length > 20) {
+            callback(new Error('用户名长度为4-20个字符'));
+          } else if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+            callback(new Error('用户名只能包含字母、数字和下划线'));
+          } else {
+            callback();
+          }
+        };
+        
+        // 验证密码
+        const validatePassword = (rule, value, callback) => {
+          if (!value) {
+            callback(new Error('请输入密码'));
+          } else if (value.length < 6) {
+            callback(new Error('密码长度不能少于6位'));
+          } else {
+            callback();
+          }
+        };
+        
+        // 验证确认密码
+        const validateConfirmPassword = (rule, value, callback) => {
+          if (!value) {
+            callback(new Error('请再次输入密码'));
+          } else if (value !== registerForm.password) {
+            callback(new Error('两次输入的密码不一致'));
+          } else {
+            callback();
+          }
+        };
+        
+        // 验证身份证号
+        const validateIdCard = (rule, value, callback) => {
+          if (!value) {
+            callback();
+          } else if (!/^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/.test(value)) {
+            callback(new Error('请输入正确的身份证号'));
+          } else {
+            callback();
+          }
+        };
+        
+        // 验证手机号
+        const validatePhone = (rule, value, callback) => {
+          if (!value) {
+            callback();
+          } else if (!/^1[3-9]\d{9}$/.test(value)) {
+            callback(new Error('请输入正确的手机号'));
+          } else {
+            callback();
+          }
+        };
+        
+        const registerRules = {
+          username: [
+            { validator: validateUsername, trigger: 'blur' }
+          ],
+          password: [
+            { validator: validatePassword, trigger: 'blur' }
+          ],
+          confirmPassword: [
+            { validator: validateConfirmPassword, trigger: 'blur' }
+          ],
+          realName: [
+            { required: true, message: '请输入真实姓名', trigger: 'blur' }
+          ],
+          idCard: [
+            { validator: validateIdCard, trigger: 'blur' }
+          ],
+          phone: [
+            { validator: validatePhone, trigger: 'blur' }
+          ]
+        };
+        
+        // 注册处理
+        const handleRegister = async () => {
+          if (!registerFormRef.value) return;
+          
+          if (!agreeTerms.value) {
+            ElMessage.warning('请先同意用户协议和隐私政策');
+            return;
+          }
+          
+          await registerFormRef.value.validate(async (valid) => {
+            if (!valid) return;
+            
+            loading.value = true;
+            try {
+              const response = await fetch(`${API_BASE_URL}/auth/register`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  username: registerForm.username,
+                  password: registerForm.password,
+                  realName: registerForm.realName,
+                  idCard: registerForm.idCard,
+                  phone: registerForm.phone
+                })
+              });
+              
+              const data = await response.json();
+              
+              if (data.code === 200) {
+                ElMessage.success('注册成功！');
+                
+                // 延迟跳转到登录页
+                setTimeout(() => {
+                  window.location.href = 'login.html';
+                }, 1000);
+              } else {
+                ElMessage.error(data.message || '注册失败');
+              }
+            } catch (error) {
+              console.error('注册错误:', error);
+              ElMessage.error('网络请求失败，请检查后端服务是否启动');
+            } finally {
+              loading.value = false;
+            }
+          });
+        };
+        
+        // 跳转到登录页
+        const goToLogin = () => {
+          window.location.href = 'login.html';
+        };
+        
+        return {
+          registerFormRef,
+          registerForm,
+          registerRules,
+          loading,
+          agreeTerms,
+          handleRegister,
+          goToLogin
+        };
+      }
+    });
+    
+    app.use(ElementPlus);
+    app.mount('#app');
+  </script>
+</body>
+</html>
+

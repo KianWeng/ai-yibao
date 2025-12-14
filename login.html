@@ -93,6 +93,14 @@
       <div class="mt-6 text-center text-sm text-gray-500">
         <p>默认账户：admin / admin123</p>
       </div>
+      
+      <!-- 注册链接 -->
+      <div class="mt-4 text-center text-sm">
+        <span class="text-gray-500">还没有账户？</span>
+        <el-link type="primary" :underline="false" @click="goToRegister">
+          立即注册
+        </el-link>
+      </div>
     </div>
   </div>
 
@@ -196,13 +204,19 @@
           loginForm.username = savedUsername;
         }
         
+        // 跳转到注册页
+        const goToRegister = () => {
+          window.location.href = 'register.html';
+        };
+        
         return {
           loginFormRef,
           loginForm,
           loginRules,
           loading,
           rememberMe,
-          handleLogin
+          handleLogin,
+          goToRegister
         };
       }
     });

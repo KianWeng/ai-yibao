@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>转院申请 - 智慧医康保险服务平台</title>
+  <!-- 引入依赖 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/element-plus@2.3.9/dist/index.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.3.9/dist/index.full.min.js"></script>
+  
+  <style>
+    body {
+      background: #f5f7fa;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white border-b border-gray-200 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center">
+            <i class="fa fa-heartbeat text-primary text-2xl mr-2"></i>
+            <span class="text-xl font-bold text-gray-800">智慧医康保险服务平台</span>
+          </div>
+          <div class="flex items-center space-x-4">
+            <span class="text-gray-600">{{ userInfo.realName || userInfo.username }}</span>
+            <el-button type="danger" size="small" @click="handleLogout">退出登录</el-button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- 页面标题 -->
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">转院申请</h1>
+        <p class="text-gray-500 mt-1">根据病情、医院评价、价格等因素选择合适的医院</p>
+      </div>
+
+      <!-- 标签页 -->
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+        <el-tab-pane label="医院列表" name="hospitals">
+          <!-- 搜索和筛选 -->
+          <div class="bg-white p-4 rounded-lg shadow-sm mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <el-input
+                v-model="hospitalSearch"
+                placeholder="搜索医院名称、专科..."
+                clearable
+                @input="loadHospitals"
+              >
+                <template #prefix>
+                  <i class="fa fa-search text-gray-400"></i>
+                </template>
+              </el-input>
+              
+              <el-select
+                v-model="hospitalSpecialty"
+                placeholder="选择专科"
+                clearable
+                @change="loadHospitals"
+                style="width: 100%"
+              >
+                <el-option label="全部" value=""></el-option>
+                <el-option label="神经科" value="神经"></el-option>
+                <el-option label="骨科" value="骨科"></el-option>
+                <el-option label="心内科" value="心内"></el-option>
+                <el-option label="康复科" value="康复"></el-option>
+              </el-select>
+              
+              <el-select
+                v-model="hospitalLevel"
+                placeholder="选择等级"
+                clearable
+                @change="loadHospitals"
+                style="width: 100%"
+              >
+                <el-option label="全部" value=""></el-option>
+                <el-option label="三级" value="三级"></el-option>
+                <el-option label="二级" value="二级"></el-option>
+                <el-option label="一级" value="一级"></el-option>
+              </el-select>
+              
+              <el-select
+                v-model="hospitalSortBy"
+                placeholder="排序方式"
+                @change="loadHospitals"
+                style="width: 100%"
+              >
+                <el-option label="按评分排序" value="rating"></el-option>
+                <el-option label="按价格排序" value="cost"></el-option>
+                <el-option label="按名称排序" value="name"></el-option>
+              </el-select>
+            </div>
+          </div>
+          
+          <!-- 医院列表 -->
+          <div v-loading="hospitalLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div
+              v-for="hospital in hospitalList"
+              :key="hospital.id"
+              class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              @click="showHospitalDetail(hospital)"
+            >
+              <div class="p-4">
+                <div class="flex items-start justify-between mb-2">
+                  <h3 class="text-lg font-semibold text-gray-800">{{ hospital.name }}</h3>
+                  <span class="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">{{ hospital.level }}</span>
+                </div>
+                
+                <div class="flex items-center mb-2">
+                  <el-rate
+                    v-model="hospital.rating"
+                    disabled
+                    show-score
+                    text-color="#ff9900"
+                    score-template="{value}"
+                    class="mr-2"
+                  />
+                  <span class="text-sm text-gray-500">({{ hospital.rating_count }}条评价)</span>
+                </div>
+                
+                <div class="text-sm text-gray-600 mb-2">
+                  <i class="fa fa-map-marker mr-1"></i>
+                  {{ hospital.address || '地址未提供' }}
+                </div>
+                
+                <div class="text-sm text-gray-600 mb-2">
+                  <i class="fa fa-stethoscope mr-1"></i>
+                  {{ hospital.specialty || '专科未提供' }}
+                </div>
+                
+                <div class="flex items-center justify-between mt-3 pt-3 border-t">
+                  <div>
+                    <span class="text-xs text-gray-500">平均费用：</span>
+                    <span class="text-lg font-bold text-primary">¥{{ hospital.average_cost || 0 }}</span>
+                  </div>
+                  <el-button type="primary" size="small" @click.stop="showApplyDialog(hospital)">
+                    申请转院
+                  </el-button>
+                </div>
+              </div>
+            </div>
+            
+            <div v-if="hospitalList.length === 0 && !hospitalLoading" class="col-span-full text-center py-20 text-gray-400">
+              <i class="fa fa-hospital-o text-5xl mb-4"></i>
+              <p>暂无医院数据</p>
+            </div>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="我的申请" name="applications">
+          <!-- 申请列表 -->
+          <div v-loading="applicationLoading" class="space-y-4">
+            <div
+              v-for="app in applicationList"
+              :key="app.id"
+              class="bg-white rounded-lg shadow-sm p-4"
+            >
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center mb-2">
+                    <span class="text-lg font-semibold text-gray-800 mr-3">{{ app.apply_no }}</span>
+                    <el-tag
+                      :type="app.status === 'approved' ? 'success' : app.status === 'rejected' ? 'danger' : 'warning'"
+                      size="small"
+                    >
+                      {{ app.status === 'pending' ? '待审核' : app.status === 'approved' ? '已批准' : '已拒绝' }}
+                    </el-tag>
+                  </div>
+                  
+                  <div class="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-2">
+                    <div>
+                      <span class="text-gray-500">患者姓名：</span>
+                      <span>{{ app.patient_name }}</span>
+                    </div>
+                    <div>
+                      <span class="text-gray-500">目标医院：</span>
+                      <span>{{ app.to_hospital }}</span>
+                    </div>
+                    <div>
+                      <span class="text-gray-500">疾病：</span>
+                      <span>{{ app.disease || '未填写' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-gray-500">申请时间：</span>
+                      <span>{{ formatDate(app.apply_time) }}</span>
+                    </div>
+                  </div>
+                  
+                  <div v-if="app.admin_comment" class="mt-2 p-2 bg-gray-50 rounded text-sm">
+                    <span class="text-gray-500">管理员备注：</span>
+                    <span>{{ app.admin_comment }}</span>
+                  </div>
+                </div>
+                
+                <el-button
+                  type="primary"
+                  size="small"
+                  @click="viewApplicationDetail(app)"
+                >
+                  查看详情
+                </el-button>
+              </div>
+            </div>
+            
+            <div v-if="applicationList.length === 0 && !applicationLoading" class="text-center py-20 text-gray-400">
+              <i class="fa fa-file-text-o text-5xl mb-4"></i>
+              <p>暂无申请记录</p>
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+    </main>
+    
+    <!-- 转院申请对话框 -->
+    <el-dialog
+      v-model="applyDialogVisible"
+      title="转院申请"
+      width="600px"
+      @close="resetApplyForm"
+    >
+      <el-form
+        ref="applyFormRef"
+        :model="applyForm"
+        :rules="applyRules"
+        label-width="100px"
+      >
+        <el-form-item label="患者姓名" prop="patientName">
+          <el-input v-model="applyForm.patientName" placeholder="请输入患者姓名" />
+        </el-form-item>
+        
+        <el-form-item label="身份证号" prop="patientIdCard">
+          <el-input v-model="applyForm.patientIdCard" placeholder="请输入身份证号" />
+        </el-form-item>
+        
+        <el-form-item label="联系电话" prop="patientPhone">
+          <el-input v-model="applyForm.patientPhone" placeholder="请输入联系电话" />
+        </el-form-item>
+        
+        <el-form-item label="当前医院" prop="fromHospital">
+          <el-input v-model="applyForm.fromHospital" placeholder="请输入当前所在医院" />
+        </el-form-item>
+        
+        <el-form-item label="目标医院">
+          <el-input :value="selectedHospital?.name" disabled />
+        </el-form-item>
+        
+        <el-form-item label="疾病名称" prop="disease">
+          <el-input v-model="applyForm.disease" placeholder="请输入疾病名称" />
+        </el-form-item>
+        
+        <el-form-item label="病情描述">
+          <el-input
+            v-model="applyForm.diseaseDescription"
+            type="textarea"
+            :rows="3"
+            placeholder="请详细描述患者病情"
+          />
+        </el-form-item>
+        
+        <el-form-item label="转院原因">
+          <el-input
+            v-model="applyForm.reason"
+            type="textarea"
+            :rows="3"
+            placeholder="请说明转院原因"
+          />
+        </el-form-item>
+        
+        <el-form-item label="预期费用">
+          <el-input-number
+            v-model="applyForm.expectedCost"
+            :min="0"
+            :precision="2"
+            placeholder="请输入预期费用"
+            style="width: 100%"
+          />
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <el-button @click="applyDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="applySubmitting" @click="submitApplication">
+          提交申请
+        </el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 医院详情对话框 -->
+    <el-dialog
+      v-model="hospitalDetailVisible"
+      title="医院详情"
+      width="800px"
+      @close="closeHospitalDetail"
+    >
+      <div v-loading="hospitalDetailLoading" class="hospital-detail">
+        <div v-if="hospitalDetail" class="space-y-6">
+          <!-- 基本信息 -->
+          <div class="border-b pb-4">
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">{{ hospitalDetail.name }}</h2>
+                <div class="flex items-center space-x-4 text-sm text-gray-600">
+                  <span class="px-2 py-1 bg-blue-100 text-blue-600 rounded">{{ hospitalDetail.level }}</span>
+                  <span class="flex items-center">
+                    <el-rate
+                      v-model="hospitalDetail.rating"
+                      disabled
+                      show-score
+                      text-color="#ff9900"
+                      score-template="{value}"
+                      class="mr-2"
+                    />
+                    <span class="text-gray-500">({{ hospitalDetail.rating_count }}条评价)</span>
+                  </span>
+                </div>
+              </div>
+              <el-button type="primary" @click="showApplyDialogFromDetail">
+                申请转院
+              </el-button>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <i class="fa fa-map-marker text-gray-400 mr-2"></i>
+                <span class="text-gray-600">{{ hospitalDetail.address || '地址未提供' }}</span>
+              </div>
+              <div>
+                <i class="fa fa-phone text-gray-400 mr-2"></i>
+                <span class="text-gray-600">{{ hospitalDetail.phone || '电话未提供' }}</span>
+              </div>
+              <div>
+                <i class="fa fa-stethoscope text-gray-400 mr-2"></i>
+                <span class="text-gray-600">{{ hospitalDetail.specialty || '专科未提供' }}</span>
+              </div>
+              <div>
+                <i class="fa fa-bed text-gray-400 mr-2"></i>
+                <span class="text-gray-600">床位数：{{ hospitalDetail.bed_count || 0 }}</span>
+              </div>
+              <div>
+                <i class="fa fa-yen text-gray-400 mr-2"></i>
+                <span class="text-gray-600">平均费用：¥{{ hospitalDetail.average_cost || 0 }}</span>
+              </div>
+              <div>
+                <i class="fa fa-info-circle text-gray-400 mr-2"></i>
+                <span class="text-gray-600">状态：{{ hospitalDetail.status || '营业中' }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 医院描述 -->
+          <div v-if="hospitalDetail.description">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">医院简介</h3>
+            <p class="text-gray-600 leading-relaxed">{{ hospitalDetail.description }}</p>
+          </div>
+          
+          <!-- 评价列表 -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-800">用户评价</h3>
+              <el-button type="primary" size="small" @click="showReviewDialog">
+                <i class="fa fa-star mr-1"></i> 添加评价
+              </el-button>
+            </div>
+            
+            <div v-if="hospitalDetail.reviews && hospitalDetail.reviews.length > 0" class="space-y-4">
+              <div
+                v-for="review in hospitalDetail.reviews"
+                :key="review.id"
+                class="border rounded-lg p-4 bg-gray-50"
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center">
+                    <el-rate
+                      v-model="review.rating"
+                      disabled
+                      size="small"
+                      class="mr-2"
+                    />
+                    <span class="text-sm text-gray-500">{{ review.real_name || review.username || '匿名用户' }}</span>
+                  </div>
+                  <span class="text-xs text-gray-400">{{ formatDate(review.created_at) }}</span>
+                </div>
+                <p v-if="review.comment" class="text-sm text-gray-600 mt-2">{{ review.comment }}</p>
+              </div>
+            </div>
+            <div v-else class="text-center py-8 text-gray-400">
+              <i class="fa fa-comment-o text-3xl mb-2"></i>
+              <p>暂无评价</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
+    
+    <!-- 评价对话框 -->
+    <el-dialog
+      v-model="reviewDialogVisible"
+      title="添加评价"
+      width="500px"
+      @close="resetReviewForm"
+    >
+      <el-form
+        ref="reviewFormRef"
+        :model="reviewForm"
+        :rules="reviewRules"
+        label-width="80px"
+      >
+        <el-form-item label="评分" prop="rating">
+          <el-rate v-model="reviewForm.rating" />
+        </el-form-item>
+        
+        <el-form-item label="评价内容">
+          <el-input
+            v-model="reviewForm.comment"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入您的评价..."
+          />
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <el-button @click="reviewDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="reviewSubmitting" @click="submitReview">
+          提交评价
+        </el-button>
+      </template>
+    </el-dialog>
+  </div>
+
+  <script>
+    const { createApp, ref, onMounted } = Vue;
+    const { ElMessage, ElMessageBox } = ElementPlus;
+    
+    // API基础配置
+    const API_BASE_URL = 'http://zephyr-w.online:3000/api';
+    
+    // 获取token
+    const getToken = () => {
+      return localStorage.getItem('token');
+    };
+    
+    // 获取请求头
+    const getHeaders = () => {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = getToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      return headers;
+    };
+    
+    // API请求工具函数
+    const api = {
+      async get(url) {
+        try {
+          const response = await fetch(`${API_BASE_URL}${url}`, {
+            headers: getHeaders()
+          });
+          const data = await response.json();
+          
+          if (data.code === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+            return null;
+          }
+          
+          if (data.code === 200) {
+            return data.data;
+          } else {
+            ElMessage.error(data.message || '请求失败');
+            return null;
+          }
+        } catch (error) {
+          ElMessage.error('网络请求失败');
+          console.error(error);
+          return null;
+        }
+      },
+      async post(url, body) {
+        try {
+          const response = await fetch(`${API_BASE_URL}${url}`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(body)
+          });
+          const data = await response.json();
+          
+          if (data.code === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+            return null;
+          }
+          
+          if (data.code === 200) {
+            return data.data;
+          } else {
+            ElMessage.error(data.message || '操作失败');
+            return null;
+          }
+        } catch (error) {
+          ElMessage.error('网络请求失败');
+          console.error(error);
+          return null;
+        }
+      }
+    };
+    
+    const app = createApp({
+      setup() {
+        // 用户信息
+        const userInfo = ref({
+          username: '',
+          realName: '',
+          role: ''
+        });
+        
+        // 标签页
+        const activeTab = ref('hospitals');
+        
+        // 医院列表相关状态
+        const hospitalList = ref([]);
+        const hospitalLoading = ref(false);
+        const hospitalSearch = ref('');
+        const hospitalSpecialty = ref('');
+        const hospitalLevel = ref('');
+        const hospitalSortBy = ref('rating');
+        
+        // 加载医院列表
+        const loadHospitals = async () => {
+          hospitalLoading.value = true;
+          try {
+            const params = new URLSearchParams({
+              search: hospitalSearch.value,
+              specialty: hospitalSpecialty.value,
+              level: hospitalLevel.value,
+              sortBy: hospitalSortBy.value
+            });
+            
+            const data = await api.get(`/transfer/hospitals?${params}`);
+            if (data) {
+              hospitalList.value = data.list || [];
+            }
+          } catch (error) {
+            console.error('加载医院列表失败:', error);
+          } finally {
+            hospitalLoading.value = false;
+          }
+        };
+        
+        // 医院详情相关状态
+        const hospitalDetailVisible = ref(false);
+        const hospitalDetailLoading = ref(false);
+        const hospitalDetail = ref(null);
+        
+        // 显示医院详情
+        const showHospitalDetail = async (hospital) => {
+          hospitalDetailVisible.value = true;
+          hospitalDetailLoading.value = true;
+          try {
+            const data = await api.get(`/transfer/hospitals/${hospital.id}`);
+            if (data) {
+              hospitalDetail.value = data;
+            }
+          } catch (error) {
+            console.error('加载医院详情失败:', error);
+            ElMessage.error('加载医院详情失败');
+          } finally {
+            hospitalDetailLoading.value = false;
+          }
+        };
+        
+        // 关闭医院详情
+        const closeHospitalDetail = () => {
+          hospitalDetail.value = null;
+        };
+        
+        // 从详情对话框申请转院
+        const showApplyDialogFromDetail = () => {
+          if (hospitalDetail.value) {
+            hospitalDetailVisible.value = false;
+            showApplyDialog(hospitalDetail.value);
+          }
+        };
+        
+        // 评价相关状态
+        const reviewDialogVisible = ref(false);
+        const reviewFormRef = ref(null);
+        const reviewSubmitting = ref(false);
+        const reviewForm = ref({
+          rating: 5,
+          comment: ''
+        });
+        
+        const reviewRules = {
+          rating: [{ required: true, message: '请选择评分', trigger: 'change' }]
+        };
+        
+        // 显示评价对话框
+        const showReviewDialog = () => {
+          if (!hospitalDetail.value) return;
+          reviewDialogVisible.value = true;
+        };
+        
+        // 重置评价表单
+        const resetReviewForm = () => {
+          if (reviewFormRef.value) {
+            reviewFormRef.value.resetFields();
+          }
+          reviewForm.value = {
+            rating: 5,
+            comment: ''
+          };
+        };
+        
+        // 提交评价
+        const submitReview = async () => {
+          if (!reviewFormRef.value || !hospitalDetail.value) return;
+          
+          await reviewFormRef.value.validate(async (valid) => {
+            if (!valid) return;
+            
+            reviewSubmitting.value = true;
+            try {
+              const data = await api.post(`/transfer/hospitals/${hospitalDetail.value.id}/reviews`, {
+                rating: reviewForm.value.rating,
+                comment: reviewForm.value.comment
+              });
+              
+              if (data !== null) {
+                ElMessage.success('评价提交成功！');
+                reviewDialogVisible.value = false;
+                resetReviewForm();
+                // 重新加载医院详情
+                await showHospitalDetail(hospitalDetail.value);
+              }
+            } catch (error) {
+              console.error('提交评价失败:', error);
+            } finally {
+              reviewSubmitting.value = false;
+            }
+          });
+        };
+        
+        // 申请相关状态
+        const applyDialogVisible = ref(false);
+        const applyFormRef = ref(null);
+        const selectedHospital = ref(null);
+        const applySubmitting = ref(false);
+        const applyForm = ref({
+          patientName: '',
+          patientIdCard: '',
+          patientPhone: '',
+          fromHospital: '',
+          disease: '',
+          diseaseDescription: '',
+          reason: '',
+          expectedCost: 0
+        });
+        
+        const applyRules = {
+          patientName: [{ required: true, message: '请输入患者姓名', trigger: 'blur' }],
+          patientIdCard: [{ required: true, message: '请输入身份证号', trigger: 'blur' }],
+          patientPhone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
+          fromHospital: [{ required: true, message: '请输入当前医院', trigger: 'blur' }],
+          disease: [{ required: true, message: '请输入疾病名称', trigger: 'blur' }]
+        };
+        
+        // 显示申请对话框
+        const showApplyDialog = (hospital) => {
+          selectedHospital.value = hospital;
+          applyDialogVisible.value = true;
+        };
+        
+        // 重置申请表单
+        const resetApplyForm = () => {
+          if (applyFormRef.value) {
+            applyFormRef.value.resetFields();
+          }
+          applyForm.value = {
+            patientName: '',
+            patientIdCard: '',
+            patientPhone: '',
+            fromHospital: '',
+            disease: '',
+            diseaseDescription: '',
+            reason: '',
+            expectedCost: 0
+          };
+          selectedHospital.value = null;
+        };
+        
+        // 提交申请
+        const submitApplication = async () => {
+          if (!applyFormRef.value) return;
+          
+          await applyFormRef.value.validate(async (valid) => {
+            if (!valid || !selectedHospital.value) return;
+            
+            applySubmitting.value = true;
+            try {
+              const data = await api.post('/transfer/applications', {
+                patientName: applyForm.value.patientName,
+                patientIdCard: applyForm.value.patientIdCard,
+                patientPhone: applyForm.value.patientPhone,
+                fromHospital: applyForm.value.fromHospital,
+                toHospitalId: selectedHospital.value.id,
+                disease: applyForm.value.disease,
+                diseaseDescription: applyForm.value.diseaseDescription,
+                reason: applyForm.value.reason,
+                expectedCost: applyForm.value.expectedCost
+              });
+              
+              if (data) {
+                ElMessage.success('转院申请提交成功！');
+                applyDialogVisible.value = false;
+                resetApplyForm();
+                // 切换到我的申请标签页
+                activeTab.value = 'applications';
+                loadApplications();
+              }
+            } catch (error) {
+              console.error('提交申请失败:', error);
+            } finally {
+              applySubmitting.value = false;
+            }
+          });
+        };
+        
+        // 申请列表相关状态
+        const applicationList = ref([]);
+        const applicationLoading = ref(false);
+        
+        // 加载申请列表
+        const loadApplications = async () => {
+          applicationLoading.value = true;
+          try {
+            const data = await api.get('/transfer/applications');
+            if (data) {
+              applicationList.value = data.list || [];
+            }
+          } catch (error) {
+            console.error('加载申请列表失败:', error);
+          } finally {
+            applicationLoading.value = false;
+          }
+        };
+        
+        // 查看申请详情
+        const viewApplicationDetail = async (app) => {
+          try {
+            const data = await api.get(`/transfer/applications/${app.id}`);
+            if (data) {
+              ElMessageBox.alert(
+                `<div class="text-left">
+                  <p><strong>申请编号：</strong>${data.apply_no}</p>
+                  <p><strong>患者姓名：</strong>${data.patient_name}</p>
+                  <p><strong>身份证号：</strong>${data.patient_id_card || '未填写'}</p>
+                  <p><strong>联系电话：</strong>${data.patient_phone || '未填写'}</p>
+                  <p><strong>当前医院：</strong>${data.from_hospital || '未填写'}</p>
+                  <p><strong>目标医院：</strong>${data.to_hospital}</p>
+                  <p><strong>疾病名称：</strong>${data.disease || '未填写'}</p>
+                  <p><strong>病情描述：</strong>${data.disease_description || '未填写'}</p>
+                  <p><strong>转院原因：</strong>${data.reason || '未填写'}</p>
+                  <p><strong>预期费用：</strong>¥${data.expected_cost || 0}</p>
+                  <p><strong>申请时间：</strong>${formatDate(data.apply_time)}</p>
+                  <p><strong>状态：</strong>${data.status === 'pending' ? '待审核' : data.status === 'approved' ? '已批准' : '已拒绝'}</p>
+                  ${data.admin_comment ? `<p><strong>管理员备注：</strong>${data.admin_comment}</p>` : ''}
+                </div>`,
+                '申请详情',
+                {
+                  dangerouslyUseHTMLString: true
+                }
+              );
+            }
+          } catch (error) {
+            console.error('查看申请详情失败:', error);
+          }
+        };
+        
+        // 格式化日期
+        const formatDate = (dateString) => {
+          if (!dateString) return '';
+          const date = new Date(dateString);
+          return date.toLocaleString('zh-CN');
+        };
+        
+        // 检查登录状态
+        const checkAuth = async () => {
+          const token = getToken();
+          if (!token) {
+            window.location.href = 'login.html';
+            return false;
+          }
+          
+          // 从localStorage获取用户信息
+          const savedUser = localStorage.getItem('user');
+          if (savedUser) {
+            try {
+              userInfo.value = JSON.parse(savedUser);
+              // 如果是管理员，跳转到管理后台
+              if (userInfo.value.role === 'admin') {
+                window.location.href = 'index.html';
+                return false;
+              }
+            } catch (e) {
+              console.error('解析用户信息失败:', e);
+            }
+          }
+          
+          // 验证token有效性
+          try {
+            const data = await api.get('/auth/me');
+            if (data) {
+              userInfo.value = data;
+              localStorage.setItem('user', JSON.stringify(data));
+              // 如果是管理员，跳转到管理后台
+              if (data.role === 'admin') {
+                window.location.href = 'index.html';
+                return false;
+              }
+            }
+          } catch (error) {
+            console.error('验证token失败:', error);
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+            return false;
+          }
+          
+          return true;
+        };
+        
+        // 退出登录
+        const handleLogout = async () => {
+          ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }).then(async () => {
+            await api.post('/auth/logout');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+          }).catch(() => {});
+        };
+        
+        // 标签页切换
+        const handleTabChange = (tabName) => {
+          if (tabName === 'hospitals') {
+            loadHospitals();
+          } else if (tabName === 'applications') {
+            loadApplications();
+          }
+        };
+        
+        // 初始化
+        onMounted(async () => {
+          const isAuthenticated = await checkAuth();
+          if (!isAuthenticated) {
+            return;
+          }
+          // 加载医院列表
+          loadHospitals();
+        });
+        
+        return {
+          userInfo,
+          activeTab,
+          handleLogout,
+          handleTabChange,
+          // 医院列表相关
+          hospitalList,
+          hospitalLoading,
+          hospitalSearch,
+          hospitalSpecialty,
+          hospitalLevel,
+          hospitalSortBy,
+          loadHospitals,
+          showHospitalDetail,
+          showApplyDialog,
+          // 医院详情相关
+          hospitalDetailVisible,
+          hospitalDetailLoading,
+          hospitalDetail,
+          closeHospitalDetail,
+          showApplyDialogFromDetail,
+          // 评价相关
+          reviewDialogVisible,
+          reviewFormRef,
+          reviewForm,
+          reviewRules,
+          reviewSubmitting,
+          showReviewDialog,
+          resetReviewForm,
+          submitReview,
+          // 申请相关
+          applyDialogVisible,
+          applyFormRef,
+          applyForm,
+          applyRules,
+          applySubmitting,
+          selectedHospital,
+          submitApplication,
+          resetApplyForm,
+          // 申请列表相关
+          applicationList,
+          applicationLoading,
+          loadApplications,
+          viewApplicationDetail,
+          formatDate
+        };
+      }
+    });
+    
+    app.use(ElementPlus);
+    app.mount('#app');
+  </script>
+</body>
+</html>
+
