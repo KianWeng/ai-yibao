@@ -14,12 +14,31 @@ async function initDefaultUser() {
     const userCount = await db.query('SELECT COUNT(*) as count FROM users');
     if (userCount[0].count === 0) {
       // 创建默认管理员账户：admin / admin123
-      const hashedPassword = await bcrypt.hash('admin123', 10);
+      const adminPassword = await bcrypt.hash('admin123', 10);
       await db.run(
         'INSERT INTO users (username, password, real_name, role, status) VALUES (?, ?, ?, ?, ?)',
-        ['admin', hashedPassword, '系统管理员', 'admin', 1]
+        ['admin', adminPassword, '系统管理员', 'admin', 1]
       );
       console.log('默认管理员账户已创建: admin / admin123');
+      
+      // 创建默认普通用户账户：user / user123
+      const userPassword = await bcrypt.hash('user123', 10);
+      await db.run(
+        'INSERT INTO users (username, password, real_name, role, status) VALUES (?, ?, ?, ?, ?)',
+        ['user', userPassword, '普通用户', 'user', 1]
+      );
+      console.log('默认普通用户账户已创建: user / user123');
+    } else {
+      // 检查是否有普通用户，如果没有则创建
+      const userExists = await db.get('SELECT COUNT(*) as count FROM users WHERE role = ?', ['user']);
+      if (!userExists || userExists.count === 0) {
+        const userPassword = await bcrypt.hash('user123', 10);
+        await db.run(
+          'INSERT INTO users (username, password, real_name, role, status) VALUES (?, ?, ?, ?, ?)',
+          ['user', userPassword, '普通用户', 'user', 1]
+        );
+        console.log('默认普通用户账户已创建: user / user123');
+      }
     }
   } catch (error) {
     console.error('初始化默认用户失败:', error);
@@ -95,6 +114,70 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('登录失败:', error);
+    res.status(500).json({
+      code: 500,
+      message: '服务器错误',
+      data: null
+    });
+  }
+});
+
+/**
+ * POST /api/auth/register
+ * 用户注册
+ */
+router.post('/register', async (req, res) => {
+  try {
+    const { username, password, realName, phone, idCard } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({
+        code: 400,
+        message: '用户名和密码不能为空',
+        data: null
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        code: 400,
+        message: '密码长度不能少于6位',
+        data: null
+      });
+    }
+
+    // 检查用户名是否已存在
+    const existingUser = await db.get(
+      'SELECT id FROM users WHERE username = ?',
+      [username]
+    );
+
+    if (existingUser) {
+      return res.status(400).json({
+        code: 400,
+        message: '用户名已存在',
+        data: null
+      });
+    }
+
+    // 加密密码
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 创建用户（默认角色为普通用户）
+    const result = await db.run(
+      'INSERT INTO users (username, password, real_name, phone, id_card, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [username, hashedPassword, realName || '', phone || '', idCard || '', 'user', 1]
+    );
+
+    res.json({
+      code: 200,
+      message: '注册成功',
+      data: {
+        userId: result.lastID
+      }
+    });
+  } catch (error) {
+    console.error('注册失败:', error);
     res.status(500).json({
       code: 500,
       message: '服务器错误',

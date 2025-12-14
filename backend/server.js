@@ -22,6 +22,7 @@ db.init();
 
 // 路由
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/transfer', require('./routes/transfer'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/drg', require('./routes/drg'));
 app.use('/api/rehabilitation', require('./routes/rehabilitation'));

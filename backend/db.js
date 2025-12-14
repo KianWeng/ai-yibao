@@ -53,6 +53,11 @@ function createTables() {
         bed_count INTEGER,
         specialty TEXT,
         status TEXT DEFAULT '营业中',
+        rating REAL DEFAULT 0,
+        price_level TEXT DEFAULT '中等',
+        address TEXT,
+        phone TEXT,
+        description TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`,
@@ -61,11 +66,19 @@ function createTables() {
       `CREATE TABLE IF NOT EXISTS transfer_applications (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         apply_no TEXT UNIQUE NOT NULL,
+        user_id INTEGER,
         patient_name TEXT NOT NULL,
+        patient_id_card TEXT,
+        patient_phone TEXT,
         from_hospital TEXT,
         to_hospital TEXT,
+        to_hospital_id INTEGER,
         disease TEXT,
+        disease_description TEXT,
+        reason TEXT,
+        expected_cost REAL,
         status TEXT DEFAULT 'pending',
+        admin_comment TEXT,
         apply_time DATETIME DEFAULT CURRENT_TIMESTAMP,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -104,10 +117,42 @@ function createTables() {
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         real_name TEXT,
-        role TEXT DEFAULT 'admin',
+        phone TEXT,
+        id_card TEXT,
+        role TEXT DEFAULT 'user',
         status INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+      
+      // 医院信息表
+      `CREATE TABLE IF NOT EXISTS hospitals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        level TEXT,
+        address TEXT,
+        phone TEXT,
+        specialty TEXT,
+        description TEXT,
+        average_cost REAL,
+        rating REAL DEFAULT 0,
+        rating_count INTEGER DEFAULT 0,
+        bed_count INTEGER,
+        status TEXT DEFAULT '营业中',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+      
+      // 医院评价表
+      `CREATE TABLE IF NOT EXISTS hospital_reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hospital_id INTEGER NOT NULL,
+        user_id INTEGER,
+        rating INTEGER DEFAULT 5,
+        comment TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (hospital_id) REFERENCES hospitals(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
       )`
     ];
     
@@ -152,18 +197,20 @@ function initData() {
       all('SELECT COUNT(*) as count FROM transfer_applications'),
       all('SELECT COUNT(*) as count FROM risk_events'),
       all('SELECT COUNT(*) as count FROM warnings'),
-      all('SELECT COUNT(*) as count FROM users')
+      all('SELECT COUNT(*) as count FROM users'),
+      all('SELECT COUNT(*) as count FROM hospitals')
     ])
-      .then(([drgRows, rehabRows, transferRows, riskRows, warningRows, userRows]) => {
+      .then(([drgRows, rehabRows, transferRows, riskRows, warningRows, userRows, hospitalRows]) => {
         const hasDrg = drgRows[0].count > 0;
         const hasRehab = rehabRows[0].count > 0;
         const hasTransfer = transferRows[0].count > 0;
         const hasRisk = riskRows[0].count > 0;
         const hasWarning = warningRows[0].count > 0;
         const hasUsers = userRows[0].count > 0;
+        const hasHospitals = hospitalRows[0].count > 0;
         
         // 如果所有表都有数据，直接返回
-        if (hasDrg && hasRehab && hasTransfer && hasRisk && hasWarning && hasUsers) {
+        if (hasDrg && hasRehab && hasTransfer && hasRisk && hasWarning && hasUsers && hasHospitals) {
           resolve();
           return;
         }
@@ -184,11 +231,13 @@ function initData() {
         
         if (!hasRehab) {
           promises.push(
-            run(`INSERT INTO rehabilitation_institutions (name, level, bed_count, specialty, status) VALUES
-              ('北京康复医院', '三级', 500, '神经康复、骨科康复', '营业中'),
-              ('上海康复医学中心', '三级', 450, '心肺康复、老年康复', '营业中'),
-              ('广州康复护理院', '二级', 300, '骨科康复、康复护理', '营业中'),
-              ('深圳康复治疗中心', '二级', 280, '神经康复、儿童康复', '停业整顿')`)
+            run(`INSERT INTO rehabilitation_institutions (name, level, bed_count, specialty, status, rating, price_level, address, phone, description) VALUES
+              ('北京康复医院', '三级', 500, '神经康复、骨科康复', '营业中', 4.8, '较高', '北京市朝阳区康复路1号', '010-12345678', '专业从事神经康复和骨科康复，设备先进，医生经验丰富'),
+              ('上海康复医学中心', '三级', 450, '心肺康复、老年康复', '营业中', 4.6, '中等', '上海市黄浦区康复路2号', '021-12345678', '专注于心肺康复和老年康复，服务周到'),
+              ('广州康复护理院', '二级', 300, '骨科康复、康复护理', '营业中', 4.5, '较低', '广州市天河区康复路3号', '020-12345678', '骨科康复专业，价格实惠'),
+              ('深圳康复治疗中心', '二级', 280, '神经康复、儿童康复', '营业中', 4.7, '中等', '深圳市南山区康复路4号', '0755-12345678', '儿童康复特色，环境优美'),
+              ('成都康复医院', '三级', 400, '综合康复', '营业中', 4.4, '较低', '成都市锦江区康复路5号', '028-12345678', '综合康复服务，性价比高'),
+              ('杭州康复中心', '二级', 350, '运动康复、理疗', '营业中', 4.3, '较低', '杭州市西湖区康复路6号', '0571-12345678', '运动康复专业，设施完善')`)
           );
         }
         
@@ -219,6 +268,21 @@ function initData() {
               ('WR20250103', '广州中山医院', '虚假住院', 25600, '待处理'),
               ('WR20250104', '深圳人民医院', '异常费用', 5800, '待处理'),
               ('WR20250105', '成都华西医院', '欺诈风险', 18200, '已处理')`)
+          );
+        }
+        
+        // 初始化医院数据
+        if (!hasHospitals) {
+          promises.push(
+            run(`INSERT INTO hospitals (name, level, address, phone, specialty, description, average_cost, rating, rating_count, bed_count, status) VALUES
+              ('北京协和医院', '三级', '北京市东城区东单北大街53号', '010-69156114', '神经科、心内科、骨科', '全国知名三甲医院，医疗水平先进', 50000, 4.8, 125, 2000, '营业中'),
+              ('上海瑞金医院', '三级', '上海市黄浦区瑞金二路197号', '021-64370045', '心内科、神经科', '华东地区知名医院，心血管疾病诊疗领先', 45000, 4.7, 98, 1800, '营业中'),
+              ('广州中山医院', '三级', '广州市越秀区中山二路107号', '020-87332200', '神经科、康复科', '华南地区知名医院，神经科实力强', 42000, 4.6, 87, 1500, '营业中'),
+              ('深圳人民医院', '三级', '深圳市罗湖区东门北路1017号', '0755-25533018', '骨科、康复科', '深圳地区知名医院，骨科专业', 38000, 4.5, 76, 1200, '营业中'),
+              ('成都华西医院', '三级', '成都市武侯区国学巷37号', '028-85422286', '综合医疗', '西南地区知名医院，综合实力强', 40000, 4.7, 112, 1600, '营业中'),
+              ('杭州第一人民医院', '二级', '杭州市上城区浣纱路261号', '0571-87065701', '康复科、理疗科', '康复治疗专业，价格实惠', 25000, 4.3, 45, 600, '营业中'),
+              ('南京鼓楼医院', '三级', '南京市鼓楼区中山路321号', '025-83106666', '神经科、心内科', '江苏省知名医院，医疗水平高', 43000, 4.6, 93, 1400, '营业中'),
+              ('武汉同济医院', '三级', '武汉市硚口区解放大道1095号', '027-83662688', '综合医疗、康复科', '华中地区知名医院，康复科专业', 41000, 4.5, 81, 1300, '营业中')`)
           );
         }
         
