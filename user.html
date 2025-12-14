@@ -15,6 +15,18 @@
     body {
       background: #f5f7fa;
     }
+    
+    /* AI助手动画 */
+    .slide-left-enter-active,
+    .slide-left-leave-active {
+      transition: transform 0.3s ease;
+    }
+    .slide-left-enter-from {
+      transform: translateX(100%);
+    }
+    .slide-left-leave-to {
+      transform: translateX(100%);
+    }
   </style>
 </head>
 <body>
@@ -28,7 +40,7 @@
             <span class="text-xl font-bold text-gray-800">智慧医康保险服务平台</span>
           </div>
           <div class="flex items-center space-x-4">
-            <span class="text-gray-600">{{ userInfo.realName || userInfo.username }}</span>
+            <span class="text-gray-600">{{ (userInfo && userInfo.realName) || (userInfo && userInfo.username) || '用户' }}</span>
             <el-button type="danger" size="small" @click="handleLogout">退出登录</el-button>
           </div>
         </div>
@@ -433,10 +445,128 @@
         </el-button>
       </template>
     </el-dialog>
+    
+    <!-- AI助手对话框 -->
+    <div class="relative">
+      <!-- 展开/收起按钮 -->
+      <button
+        v-if="!aiAssistantVisible"
+        @click="aiAssistantVisible = true"
+        class="fixed right-4 bottom-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 flex items-center justify-center z-50 px-6 py-3 space-x-2"
+        title="打开AI助手"
+      >
+        <i class="fa fa-robot text-xl"></i>
+        <span class="font-semibold text-sm">AI助手</span>
+      </button>
+      
+      <!-- AI助手面板 -->
+      <transition name="slide-left">
+        <div
+          v-if="aiAssistantVisible"
+          class="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col"
+        >
+          <!-- 头部 -->
+          <div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 flex items-center justify-between shadow-md">
+            <div class="flex items-center">
+              <i class="fa fa-robot text-xl mr-2"></i>
+              <span class="font-semibold">转院建议AI助手</span>
+            </div>
+            <button
+              @click="aiAssistantVisible = false"
+              class="text-white hover:text-gray-200 transition-colors"
+            >
+              <i class="fa fa-times text-lg"></i>
+            </button>
+          </div>
+          
+          <!-- 消息列表 -->
+          <div
+            ref="aiMessageContainer"
+            class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-100"
+          >
+            <!-- 欢迎消息 -->
+            <div v-if="aiMessages.length === 0" class="text-center text-gray-400 py-8">
+              <i class="fa fa-comments text-4xl mb-2"></i>
+              <p>我是转院建议AI助手</p>
+              <p class="text-sm mt-2">可以问我关于转院的问题，我会根据您的病情和需求推荐合适的医院</p>
+              <div class="mt-4 space-y-2">
+                <el-button size="small" @click="askQuickQuestion('推荐治疗脑出血的医院')">
+                  推荐治疗脑出血的医院
+                </el-button>
+                <el-button size="small" @click="askQuickQuestion('价格实惠的康复医院')">
+                  价格实惠的康复医院
+                </el-button>
+              </div>
+            </div>
+            
+            <!-- 消息项 -->
+            <div
+              v-for="(msg, index) in aiMessages"
+              :key="index"
+              class="flex"
+              :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
+            >
+              <div
+                class="max-w-[80%] rounded-lg p-3"
+                :class="msg.role === 'user' ? 'bg-blue-600 text-white shadow-md' : 'bg-blue-50 text-gray-800 shadow-md border border-blue-200'"
+              >
+                <div class="text-sm whitespace-pre-wrap">{{ msg.content }}</div>
+                <div
+                  class="text-xs mt-1 opacity-70"
+                  :class="msg.role === 'user' ? 'text-white' : 'text-gray-500'"
+                >
+                  {{ formatAITime(msg.timestamp) }}
+                </div>
+              </div>
+            </div>
+            
+            <!-- 加载中 -->
+            <div v-if="aiLoading" class="flex justify-start">
+              <div class="bg-blue-50 rounded-lg p-3 shadow-md border border-blue-200">
+                <div class="flex items-center space-x-2">
+                  <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                  <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 输入区域 -->
+          <div class="border-t border-gray-200 p-4 bg-white">
+            <div class="flex space-x-2">
+              <el-input
+                v-model="aiInputMessage"
+                placeholder="输入您的问题，例如：推荐治疗XX疾病的医院"
+                @keyup.enter="sendAIMessage"
+                :disabled="aiLoading"
+                clearable
+              >
+                <template #prefix>
+                  <i class="fa fa-paper-plane text-gray-400"></i>
+                </template>
+              </el-input>
+              <el-button
+                type="primary"
+                @click="sendAIMessage"
+                :loading="aiLoading"
+                :disabled="!aiInputMessage.trim()"
+              >
+                <i class="fa fa-send mr-1"></i>
+                发送
+              </el-button>
+            </div>
+            <div class="mt-2 text-xs text-gray-400">
+              <span>提示：可以询问转院建议、医院推荐、费用咨询等问题</span>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </div>
   </div>
 
   <script>
-    const { createApp, ref, onMounted } = Vue;
+    const { createApp, ref, onMounted, watch, nextTick } = Vue;
     const { ElMessage, ElMessageBox } = ElementPlus;
     
     // API基础配置
@@ -794,6 +924,105 @@
           return date.toLocaleString('zh-CN');
         };
         
+        // AI助手相关状态
+        const aiAssistantVisible = ref(false);
+        const aiMessages = ref([]);
+        const aiInputMessage = ref('');
+        const aiLoading = ref(false);
+        const aiMessageContainer = ref(null);
+        
+        // 格式化AI消息时间
+        const formatAITime = (timestamp) => {
+          if (!timestamp) return '';
+          const date = new Date(timestamp);
+          const hours = date.getHours().toString().padStart(2, '0');
+          const minutes = date.getMinutes().toString().padStart(2, '0');
+          return `${hours}:${minutes}`;
+        };
+        
+        // 滚动到底部
+        const scrollAIToBottom = () => {
+          nextTick(() => {
+            if (aiMessageContainer.value) {
+              aiMessageContainer.value.scrollTop = aiMessageContainer.value.scrollHeight;
+            }
+          });
+        };
+        
+        // 快速问题
+        const askQuickQuestion = (question) => {
+          aiInputMessage.value = question;
+          sendAIMessage();
+        };
+        
+        // 发送AI消息
+        const sendAIMessage = async () => {
+          const message = aiInputMessage.value.trim();
+          if (!message || aiLoading.value) return;
+          
+          // 添加用户消息
+          const userMessage = {
+            role: 'user',
+            content: message,
+            timestamp: new Date().toISOString()
+          };
+          aiMessages.value.push(userMessage);
+          aiInputMessage.value = '';
+          scrollAIToBottom();
+          
+          // 发送到AI助手
+          aiLoading.value = true;
+          try {
+            // 获取当前医院列表作为上下文
+            const hospitalContext = hospitalList.value.map(h => ({
+              name: h.name,
+              level: h.level,
+              specialty: h.specialty,
+              rating: h.rating,
+              averageCost: h.average_cost,
+              address: h.address
+            }));
+            
+            const data = await api.post('/ai-assistant/chat', {
+              message: message,
+              context: {
+                currentPage: 'user',
+                hospitals: hospitalContext,
+                userRole: 'user'
+              }
+            });
+            
+            if (data && data.response) {
+              // 添加AI回复
+              aiMessages.value.push({
+                role: 'assistant',
+                content: data.response,
+                timestamp: data.timestamp || new Date().toISOString()
+              });
+              scrollAIToBottom();
+            } else {
+              ElMessage.error('AI助手暂时无法响应，请稍后重试');
+            }
+          } catch (error) {
+            console.error('发送AI消息失败:', error);
+            ElMessage.error('发送消息失败，请检查网络连接');
+          } finally {
+            aiLoading.value = false;
+          }
+        };
+        
+        // 监听消息变化，自动滚动
+        watch(aiMessages, () => {
+          scrollAIToBottom();
+        }, { deep: true });
+        
+        // 监听加载状态
+        watch(aiLoading, (newVal) => {
+          if (!newVal) {
+            scrollAIToBottom();
+          }
+        });
+        
         // 检查登录状态
         const checkAuth = async () => {
           const token = getToken();
@@ -806,11 +1035,18 @@
           const savedUser = localStorage.getItem('user');
           if (savedUser) {
             try {
-              userInfo.value = JSON.parse(savedUser);
-              // 如果是管理员，跳转到管理后台
-              if (userInfo.value.role === 'admin') {
-                window.location.href = 'index.html';
-                return false;
+              const parsedUser = JSON.parse(savedUser);
+              if (parsedUser && typeof parsedUser === 'object') {
+                userInfo.value = {
+                  username: parsedUser.username || '',
+                  realName: parsedUser.realName || parsedUser.real_name || '',
+                  role: parsedUser.role || 'user'
+                };
+                // 如果是管理员，跳转到管理后台
+                if (userInfo.value.role === 'admin') {
+                  window.location.href = 'index.html';
+                  return false;
+                }
               }
             } catch (e) {
               console.error('解析用户信息失败:', e);
@@ -820,11 +1056,15 @@
           // 验证token有效性
           try {
             const data = await api.get('/auth/me');
-            if (data) {
-              userInfo.value = data;
-              localStorage.setItem('user', JSON.stringify(data));
+            if (data && typeof data === 'object') {
+              userInfo.value = {
+                username: data.username || '',
+                realName: data.realName || data.real_name || '',
+                role: data.role || 'user'
+              };
+              localStorage.setItem('user', JSON.stringify(userInfo.value));
               // 如果是管理员，跳转到管理后台
-              if (data.role === 'admin') {
+              if (userInfo.value.role === 'admin') {
                 window.location.href = 'index.html';
                 return false;
               }
@@ -917,7 +1157,16 @@
           applicationLoading,
           loadApplications,
           viewApplicationDetail,
-          formatDate
+          formatDate,
+          // AI助手相关
+          aiAssistantVisible,
+          aiMessages,
+          aiInputMessage,
+          aiLoading,
+          aiMessageContainer,
+          sendAIMessage,
+          formatAITime,
+          askQuickQuestion
         };
       }
     });

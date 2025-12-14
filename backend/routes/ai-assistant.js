@@ -7,8 +7,8 @@ const AI_API_URL = process.env.AI_API_URL || 'https://api.openai.com/v1/chat/com
 const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_MODEL = process.env.AI_MODEL || 'gpt-3.5-turbo';
 
-// 医保欺诈检测的系统提示词
-const SYSTEM_PROMPT = `你是一位专业的医保欺诈检测AI助手。你的职责是：
+// 医保欺诈检测的系统提示词（管理员使用）
+const SYSTEM_PROMPT_ADMIN = `你是一位专业的医保欺诈检测AI助手。你的职责是：
 1. 分析医疗费用数据，识别潜在的欺诈行为
 2. 检测异常模式，如虚假住院、过度医疗、重复收费等
 3. 提供详细的风险评估报告
@@ -16,11 +16,24 @@ const SYSTEM_PROMPT = `你是一位专业的医保欺诈检测AI助手。你的�
 
 请用专业、准确、简洁的语言回答用户的问题。`;
 
+// 转院建议的系统提示词（普通用户使用）
+const SYSTEM_PROMPT_USER = `你是一位专业的转院建议AI助手。你的职责是：
+1. 根据用户的病情、需求和预算，推荐合适的医院
+2. 分析医院的专业特长、评价、价格等因素
+3. 提供详细的转院建议和医院对比
+4. 回答用户关于转院流程、费用、注意事项等问题
+
+请用专业、准确、简洁的语言回答用户的问题。如果用户提供了医院列表，请基于这些医院信息给出建议。`;
+
 /**
  * 调用大模型API
  */
 async function callAIModel(userMessage, context = {}) {
   try {
+    // 根据用户角色选择系统提示词
+    const userRole = context.userRole || 'admin';
+    const systemPrompt = userRole === 'user' ? SYSTEM_PROMPT_USER : SYSTEM_PROMPT_ADMIN;
+    
     // 构建消息内容
     let fullMessage = userMessage;
     
@@ -32,6 +45,11 @@ async function callAIModel(userMessage, context = {}) {
     if (context.riskEvents) {
       fullMessage += `\n\n风险事件：\n${JSON.stringify(context.riskEvents, null, 2)}`;
     }
+    
+    // 如果是普通用户，添加医院列表信息
+    if (userRole === 'user' && context.hospitals && context.hospitals.length > 0) {
+      fullMessage += `\n\n可选医院列表：\n${JSON.stringify(context.hospitals, null, 2)}`;
+    }
 
     const response = await axios.post(
       AI_API_URL,
@@ -40,7 +58,7 @@ async function callAIModel(userMessage, context = {}) {
         messages: [
           {
             role: 'system',
-            content: SYSTEM_PROMPT
+            content: systemPrompt
           },
           {
             role: 'user',
