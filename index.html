@@ -165,6 +165,12 @@
               </template>
               <span>操作日志</span>
             </el-menu-item>
+            <el-menu-item index="help" class="mb-1">
+              <template #icon>
+                <i class="fa fa-question-circle text-gray-500"></i>
+              </template>
+              <span>使用说明</span>
+            </el-menu-item>
           </el-menu>
         </div>
       </aside>
@@ -393,15 +399,15 @@
               <div class="mt-6 space-y-4">
                 <div>
                   <p class="text-sm text-gray-400 mb-1">今日申请数</p>
-                  <h4 class="text-xl font-bold text-gray-600">{{ transferStats.today }}</h4>
+                  <h4 class="text-xl font-bold text-gray-600">{{ transferStats?.today || 0 }}</h4>
                 </div>
                 <div>
                   <p class="text-sm text-gray-400 mb-1">本周申请数</p>
-                  <h4 class="text-xl font-bold text-gray-600">{{ transferStats.week }}</h4>
+                  <h4 class="text-xl font-bold text-gray-600">{{ transferStats?.week || 0 }}</h4>
                 </div>
                 <div>
                   <p class="text-sm text-gray-400 mb-1">本月申请数</p>
-                  <h4 class="text-xl font-bold text-gray-600">{{ transferStats.month }}</h4>
+                  <h4 class="text-xl font-bold text-gray-600">{{ transferStats?.month || 0 }}</h4>
                 </div>
               </div>
             </div>
@@ -558,6 +564,248 @@
             <p class="text-gray-400">该页面功能正在开发中...</p>
           </div>
         </div>
+        
+        <!-- 使用说明页面 -->
+        <div v-if="activeMenu === 'help'" class="space-y-6">
+          <div class="bg-white rounded-lg shadow-sm p-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
+              <i class="fa fa-question-circle text-primary mr-3"></i>
+              系统使用说明
+            </h1>
+            
+            <!-- 管理员功能说明 -->
+            <div class="space-y-6">
+              <section>
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">管理员功能</h2>
+                
+                <div class="space-y-4">
+                  <div class="bg-blue-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-tachometer text-blue-600 mr-2"></i>
+                      1. 数据概览
+                    </h3>
+                    <p class="text-gray-600 mb-2">查看系统的核心指标和统计数据：</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>支付效率、康复衔接效率、赔付率、结算时间等核心指标</li>
+                      <li>医保费用趋势图表（支持月度/季度/年度切换）</li>
+                      <li>风控预警分布饼图</li>
+                      <li>最近风控预警列表（支持刷新）</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="bg-green-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-file-text-o text-green-600 mr-2"></i>
+                      2. DRG支付政策管理
+                    </h3>
+                    <p class="text-gray-600 mb-2">管理DRG（按疾病诊断相关分组）支付政策：</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>查看DRG政策列表，支持搜索和筛选</li>
+                      <li>按DRG编码、名称、诊断进行搜索</li>
+                      <li>按状态筛选（启用/禁用）</li>
+                      <li>查看DRG分组统计柱状图</li>
+                      <li>删除DRG政策（带确认提示）</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="bg-purple-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-hospital-o text-purple-600 mr-2"></i>
+                      3. 康复服务衔接管理
+                    </h3>
+                    <p class="text-gray-600 mb-2">管理康复机构和转院申请：</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>查看康复机构列表和详细信息</li>
+                      <li>查看转院申请统计饼图</li>
+                      <li>处理转院申请（批准/拒绝）</li>
+                      <li>查看今日/本周/本月申请统计</li>
+                      <li>按状态筛选转院申请</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="bg-red-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-shield text-red-600 mr-2"></i>
+                      4. 风控与预测管理
+                    </h3>
+                    <p class="text-gray-600 mb-2">管理风险事件和风控模型：</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>查看风控模型概览（召回率、误报率、拦截成功率）</li>
+                      <li>查看风险类型分布饼图</li>
+                      <li>查看风险等级分布柱状图</li>
+                      <li>管理风险事件列表（搜索、筛选）</li>
+                      <li>按风险等级和类型筛选</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="bg-yellow-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-robot text-yellow-600 mr-2"></i>
+                      5. AI助手（医保欺诈检测）
+                    </h3>
+                    <p class="text-gray-600 mb-2">使用AI助手进行医保欺诈检测和分析：</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>点击右下角AI助手按钮打开对话框</li>
+                      <li>询问关于医保欺诈检测的问题</li>
+                      <li>分析医疗费用数据，识别潜在欺诈行为</li>
+                      <li>获取风险评估报告和处理建议</li>
+                      <li>支持上下文数据传递，提供更精准的分析</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+              
+              <!-- 普通用户功能说明 -->
+              <section class="mt-8">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">普通用户功能</h2>
+                
+                <div class="space-y-4">
+                  <div class="bg-blue-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-hospital-o text-blue-600 mr-2"></i>
+                      1. 医院列表浏览
+                    </h3>
+                    <p class="text-gray-600 mb-2">浏览和搜索医院信息：</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>查看所有可用医院列表</li>
+                      <li>按医院名称、专科进行搜索</li>
+                      <li>按专科类型筛选（神经科、骨科、心内科、康复科等）</li>
+                      <li>按医院等级筛选（三级、二级、一级）</li>
+                      <li>按评分、价格、名称排序</li>
+                      <li>查看医院评分、评价数量、平均费用等信息</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="bg-green-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-info-circle text-green-600 mr-2"></i>
+                      2. 医院详情查看
+                    </h3>
+                    <p class="text-gray-600 mb-2">查看医院的详细信息：</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>点击医院卡片查看详细信息</li>
+                      <li>查看医院地址、电话、专科、床位数等</li>
+                      <li>查看医院简介和描述</li>
+                      <li>查看其他用户的评价和评分</li>
+                      <li>从详情页面直接申请转院</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="bg-purple-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-star text-purple-600 mr-2"></i>
+                      3. 医院评价功能
+                    </h3>
+                    <p class="text-gray-600 mb-2">对医院进行评价：</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>在医院详情页面添加评价</li>
+                      <li>进行1-5星评分</li>
+                      <li>填写评价内容</li>
+                      <li>评价会影响医院的整体评分</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="bg-red-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-file-text-o text-red-600 mr-2"></i>
+                      4. 转院申请
+                    </h3>
+                    <p class="text-gray-600 mb-2">提交转院申请：</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>在医院列表或详情页面点击"申请转院"</li>
+                      <li>填写患者信息（姓名、身份证号、联系电话）</li>
+                      <li>填写当前医院和目标医院</li>
+                      <li>填写疾病名称和病情描述</li>
+                      <li>填写转院原因和预期费用</li>
+                      <li>提交后等待管理员审核</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="bg-yellow-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-list text-yellow-600 mr-2"></i>
+                      5. 我的申请管理
+                    </h3>
+                    <p class="text-gray-600 mb-2">查看和管理转院申请：</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>在"我的申请"标签页查看所有申请</li>
+                      <li>查看申请状态（待审核、已批准、已拒绝）</li>
+                      <li>查看申请详情（包括管理员备注）</li>
+                      <li>按状态筛选申请</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="bg-indigo-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-robot text-indigo-600 mr-2"></i>
+                      6. AI助手（转院建议）
+                    </h3>
+                    <p class="text-gray-600 mb-2">使用AI助手获取转院建议：</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>点击右下角AI助手按钮打开对话框</li>
+                      <li>询问转院相关问题，例如：</li>
+                      <li class="ml-6">- "推荐治疗脑出血的医院"</li>
+                      <li class="ml-6">- "价格实惠的康复医院"</li>
+                      <li class="ml-6">- "评分高的神经科医院"</li>
+                      <li>AI会根据医院列表和您的需求提供个性化建议</li>
+                      <li>支持医院对比和转院流程咨询</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+              
+              <!-- 通用功能说明 -->
+              <section class="mt-8">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">通用功能</h2>
+                
+                <div class="space-y-4">
+                  <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-user text-gray-600 mr-2"></i>
+                      用户注册与登录
+                    </h3>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>新用户可以通过注册页面创建账户</li>
+                      <li>填写用户名、密码、真实姓名、身份证号、联系电话</li>
+                      <li>登录后根据角色自动跳转到对应界面</li>
+                      <li>管理员账户：admin / admin123</li>
+                      <li>普通用户账户：user / user123</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                      <i class="fa fa-shield text-gray-600 mr-2"></i>
+                      权限管理
+                    </h3>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                      <li>系统根据用户角色显示不同界面</li>
+                      <li>管理员可以访问所有管理功能</li>
+                      <li>普通用户只能访问转院申请相关功能</li>
+                      <li>未登录用户会自动跳转到登录页面</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+              
+              <!-- 使用技巧 -->
+              <section class="mt-8">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">使用技巧</h2>
+                
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
+                  <ul class="list-disc list-inside text-gray-700 space-y-2">
+                    <li><strong>搜索功能：</strong>使用搜索框可以快速查找医院、DRG政策等信息</li>
+                    <li><strong>筛选功能：</strong>使用下拉菜单可以按不同条件筛选数据</li>
+                    <li><strong>排序功能：</strong>在用户界面可以按评分、价格等排序医院</li>
+                    <li><strong>AI助手：</strong>充分利用AI助手获取智能建议和分析</li>
+                    <li><strong>数据刷新：</strong>某些页面支持手动刷新获取最新数据</li>
+                    <li><strong>详情查看：</strong>点击列表项可以查看详细信息</li>
+                  </ul>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
       </main>
       
       <!-- AI助手对话框 -->
@@ -599,7 +847,7 @@
               class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-100"
             >
               <!-- 欢迎消息 -->
-              <div v-if="aiMessages.length === 0" class="text-center text-gray-400 py-8">
+              <div v-if="!aiMessages || aiMessages.length === 0" class="text-center text-gray-400 py-8">
                 <i class="fa fa-comments text-4xl mb-2"></i>
                 <p>我是医保欺诈检测AI助手</p>
                 <p class="text-sm mt-2">可以问我任何关于医保欺诈检测的问题</p>
@@ -607,7 +855,7 @@
               
               <!-- 消息项 -->
               <div
-                v-for="(msg, index) in aiMessages"
+                v-for="(msg, index) in (aiMessages || [])"
                 :key="index"
                 class="flex"
                 :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
@@ -978,7 +1226,8 @@
             const data = await api.get(`/transfer/applications?${params}`);
             if (data) {
               // 格式化数据以匹配表格
-              transferList.value = (data.list || []).map(item => ({
+              const list = Array.isArray(data.list) ? data.list : [];
+              transferList.value = list.map(item => ({
                 id: item.id,
                 applyNo: item.apply_no,
                 patientName: item.patient_name,
@@ -990,20 +1239,22 @@
                 adminComment: item.admin_comment
               }));
               // 统计信息
-              const all = data.list || [];
               transferStats.value = {
-                today: all.filter(a => {
+                today: list.filter(a => {
+                  if (!a || !a.apply_time) return false;
                   const date = new Date(a.apply_time);
                   const today = new Date();
                   return date.toDateString() === today.toDateString();
                 }).length,
-                week: all.filter(a => {
+                week: list.filter(a => {
+                  if (!a || !a.apply_time) return false;
                   const date = new Date(a.apply_time);
                   const weekAgo = new Date();
                   weekAgo.setDate(weekAgo.getDate() - 7);
                   return date >= weekAgo;
                 }).length,
-                month: all.filter(a => {
+                month: list.filter(a => {
+                  if (!a || !a.apply_time) return false;
                   const date = new Date(a.apply_time);
                   const monthAgo = new Date();
                   monthAgo.setMonth(monthAgo.getMonth() - 1);

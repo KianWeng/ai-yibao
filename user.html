@@ -40,6 +40,9 @@
             <span class="text-xl font-bold text-gray-800">智慧医康保险服务平台</span>
           </div>
           <div class="flex items-center space-x-4">
+            <el-button type="info" size="small" @click="showHelpDialog = true">
+              <i class="fa fa-question-circle mr-1"></i>使用说明
+            </el-button>
             <span class="text-gray-600">{{ (userInfo && userInfo.realName) || (userInfo && userInfo.username) || '用户' }}</span>
             <el-button type="danger" size="small" @click="handleLogout">退出登录</el-button>
           </div>
@@ -446,6 +449,135 @@
       </template>
     </el-dialog>
     
+    <!-- 使用说明对话框 -->
+    <el-dialog
+      v-model="showHelpDialog"
+      title="系统使用说明"
+      width="900px"
+      :close-on-click-modal="false"
+    >
+      <div class="help-content max-h-[70vh] overflow-y-auto">
+        <div class="space-y-6">
+          <section>
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">普通用户功能</h2>
+            
+            <div class="space-y-4">
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                  <i class="fa fa-hospital-o text-blue-600 mr-2"></i>
+                  1. 医院列表浏览
+                </h3>
+                <p class="text-gray-600 mb-2">浏览和搜索医院信息：</p>
+                <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                  <li>查看所有可用医院列表</li>
+                  <li>按医院名称、专科进行搜索</li>
+                  <li>按专科类型筛选（神经科、骨科、心内科、康复科等）</li>
+                  <li>按医院等级筛选（三级、二级、一级）</li>
+                  <li>按评分、价格、名称排序</li>
+                  <li>查看医院评分、评价数量、平均费用等信息</li>
+                </ul>
+              </div>
+              
+              <div class="bg-green-50 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                  <i class="fa fa-info-circle text-green-600 mr-2"></i>
+                  2. 医院详情查看
+                </h3>
+                <p class="text-gray-600 mb-2">查看医院的详细信息：</p>
+                <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                  <li>点击医院卡片查看详细信息</li>
+                  <li>查看医院地址、电话、专科、床位数等</li>
+                  <li>查看医院简介和描述</li>
+                  <li>查看其他用户的评价和评分</li>
+                  <li>从详情页面直接申请转院</li>
+                </ul>
+              </div>
+              
+              <div class="bg-purple-50 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                  <i class="fa fa-star text-purple-600 mr-2"></i>
+                  3. 医院评价功能
+                </h3>
+                <p class="text-gray-600 mb-2">对医院进行评价：</p>
+                <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                  <li>在医院详情页面点击"添加评价"按钮</li>
+                  <li>进行1-5星评分</li>
+                  <li>填写评价内容</li>
+                  <li>评价会影响医院的整体评分</li>
+                </ul>
+              </div>
+              
+              <div class="bg-red-50 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                  <i class="fa fa-file-text-o text-red-600 mr-2"></i>
+                  4. 转院申请
+                </h3>
+                <p class="text-gray-600 mb-2">提交转院申请：</p>
+                <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                  <li>在医院列表或详情页面点击"申请转院"按钮</li>
+                  <li>填写患者信息（姓名、身份证号、联系电话）</li>
+                  <li>填写当前医院和目标医院</li>
+                  <li>填写疾病名称和病情描述</li>
+                  <li>填写转院原因和预期费用</li>
+                  <li>提交后等待管理员审核</li>
+                </ul>
+              </div>
+              
+              <div class="bg-yellow-50 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                  <i class="fa fa-list text-yellow-600 mr-2"></i>
+                  5. 我的申请管理
+                </h3>
+                <p class="text-gray-600 mb-2">查看和管理转院申请：</p>
+                <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                  <li>在"我的申请"标签页查看所有申请</li>
+                  <li>查看申请状态（待审核、已批准、已拒绝）</li>
+                  <li>点击"查看详情"查看完整申请信息</li>
+                  <li>查看管理员备注和反馈</li>
+                </ul>
+              </div>
+              
+              <div class="bg-indigo-50 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                  <i class="fa fa-robot text-indigo-600 mr-2"></i>
+                  6. AI助手（转院建议）
+                </h3>
+                <p class="text-gray-600 mb-2">使用AI助手获取转院建议：</p>
+                <ul class="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                  <li>点击右下角"AI助手"按钮打开对话框</li>
+                  <li>可以询问转院相关问题，例如：</li>
+                  <li class="ml-6">- "推荐治疗脑出血的医院"</li>
+                  <li class="ml-6">- "价格实惠的康复医院"</li>
+                  <li class="ml-6">- "评分高的神经科医院"</li>
+                  <li>AI会根据医院列表和您的需求提供个性化建议</li>
+                  <li>支持医院对比和转院流程咨询</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+          
+          <section class="mt-6">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">使用技巧</h2>
+            
+            <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
+              <ul class="list-disc list-inside text-gray-700 space-y-2">
+                <li><strong>搜索功能：</strong>使用搜索框可以快速查找医院</li>
+                <li><strong>筛选功能：</strong>使用下拉菜单可以按专科、等级等条件筛选</li>
+                <li><strong>排序功能：</strong>可以按评分、价格、名称排序医院</li>
+                <li><strong>AI助手：</strong>充分利用AI助手获取智能转院建议</li>
+                <li><strong>评价功能：</strong>查看其他用户的评价帮助选择医院</li>
+                <li><strong>详情查看：</strong>点击医院卡片查看详细信息</li>
+              </ul>
+            </div>
+          </section>
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button type="primary" @click="showHelpDialog = false">我知道了</el-button>
+      </template>
+    </el-dialog>
+    
     <!-- AI助手对话框 -->
     <div class="relative">
       <!-- 展开/收起按钮 -->
@@ -656,6 +788,9 @@
         
         // 标签页
         const activeTab = ref('hospitals');
+        
+        // 使用说明对话框
+        const showHelpDialog = ref(false);
         
         // 医院列表相关状态
         const hospitalList = ref([]);
@@ -1118,6 +1253,7 @@
           activeTab,
           handleLogout,
           handleTabChange,
+          showHelpDialog,
           // 医院列表相关
           hospitalList,
           hospitalLoading,
