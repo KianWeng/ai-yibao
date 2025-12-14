@@ -230,11 +230,20 @@ router.get('/me', async (req, res) => {
     // 验证token
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    // 查询用户信息
-    const user = await db.get(
-      'SELECT id, username, real_name, role, status FROM users WHERE id = ? AND status = 1',
-      [decoded.id]
-    );
+    // 查询用户信息（尝试获取所有字段，如果字段不存在则忽略）
+    let user;
+    try {
+      user = await db.get(
+        'SELECT id, username, real_name, role, status, phone, id_card FROM users WHERE id = ? AND status = 1',
+        [decoded.id]
+      );
+    } catch (e) {
+      // 如果字段不存在，使用基础查询
+      user = await db.get(
+        'SELECT id, username, real_name, role, status FROM users WHERE id = ? AND status = 1',
+        [decoded.id]
+      );
+    }
 
     if (!user) {
       return res.status(401).json({
@@ -251,7 +260,9 @@ router.get('/me', async (req, res) => {
         id: user.id,
         username: user.username,
         realName: user.real_name,
-        role: user.role
+        role: user.role,
+        phone: user.phone || '',
+        idCard: user.id_card || ''
       }
     });
   } catch (error) {

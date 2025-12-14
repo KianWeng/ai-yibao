@@ -943,6 +943,19 @@
         // 显示申请对话框
         const showApplyDialog = (hospital) => {
           selectedHospital.value = hospital;
+          
+          // 自动填充用户注册信息（如果有的话）
+          applyForm.value = {
+            patientName: userInfo.value?.realName || userInfo.value?.real_name || '',
+            patientIdCard: userInfo.value?.idCard || userInfo.value?.id_card || '',
+            patientPhone: userInfo.value?.phone || '',
+            fromHospital: '',
+            disease: '',
+            diseaseDescription: '',
+            reason: '',
+            expectedCost: 0
+          };
+          
           applyDialogVisible.value = true;
         };
         
@@ -1175,7 +1188,9 @@
                 userInfo.value = {
                   username: parsedUser.username || '',
                   realName: parsedUser.realName || parsedUser.real_name || '',
-                  role: parsedUser.role || 'user'
+                  role: parsedUser.role || 'user',
+                  phone: parsedUser.phone || '',
+                  idCard: parsedUser.idCard || parsedUser.id_card || ''
                 };
                 // 如果是管理员，跳转到管理后台
                 if (userInfo.value.role === 'admin') {
@@ -1195,7 +1210,9 @@
               userInfo.value = {
                 username: data.username || '',
                 realName: data.realName || data.real_name || '',
-                role: data.role || 'user'
+                role: data.role || 'user',
+                phone: data.phone || '',
+                idCard: data.idCard || data.id_card || ''
               };
               localStorage.setItem('user', JSON.stringify(userInfo.value));
               // 如果是管理员，跳转到管理后台
