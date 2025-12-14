@@ -465,8 +465,9 @@
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="bg-white rounded-lg p-6 card-shadow lg:col-span-1">
               <h3 class="font-semibold text-gray-600 mb-4">转院申请统计</h3>
-              <div id="transferApplyChart" class="w-full h-48"></div>
-              <div class="mt-6 space-y-4">
+              
+              <!-- 统计数字部分 - 移到图表上方 -->
+              <div class="mb-4 space-y-3">
                 <div>
                   <p class="text-sm text-gray-400 mb-1">今日申请数</p>
                   <h4 class="text-xl font-bold text-gray-600">{{ transferStats?.today || 0 }}</h4>
@@ -479,6 +480,18 @@
                   <p class="text-sm text-gray-400 mb-1">本月申请数</p>
                   <h4 class="text-xl font-bold text-gray-600">{{ transferStats?.month || 0 }}</h4>
                 </div>
+              </div>
+              
+              <!-- 状态分布饼图 -->
+              <div class="mb-4">
+                <h4 class="text-sm font-semibold text-gray-600 mb-2">申请状态分布</h4>
+                <div id="transferApplyChart" class="w-full h-40"></div>
+              </div>
+              
+              <!-- 转院申请趋势图表 -->
+              <div>
+                <h4 class="text-sm font-semibold text-gray-600 mb-2">申请趋势</h4>
+                <div id="transferTrendChart" class="w-full h-40"></div>
               </div>
             </div>
 
@@ -1336,32 +1349,11 @@
                 status: item.status,
                 adminComment: item.admin_comment
               }));
-              // 统计信息
-              transferStats.value = {
-                today: list.filter(a => {
-                  if (!a || !a.apply_time) return false;
-                  const date = new Date(a.apply_time);
-                  const today = new Date();
-                  return date.toDateString() === today.toDateString();
-                }).length,
-                week: list.filter(a => {
-                  if (!a || !a.apply_time) return false;
-                  const date = new Date(a.apply_time);
-                  const weekAgo = new Date();
-                  weekAgo.setDate(weekAgo.getDate() - 7);
-                  return date >= weekAgo;
-                }).length,
-                month: list.filter(a => {
-                  if (!a || !a.apply_time) return false;
-                  const date = new Date(a.apply_time);
-                  const monthAgo = new Date();
-                  monthAgo.setMonth(monthAgo.getMonth() - 1);
-                  return date >= monthAgo;
-                }).length
-              };
             }
+            // 加载统计数据（用于趋势图）
+            await loadTransferStats();
             await nextTick();
-            initTransferChart();
+            await initTransferChart();
           } finally {
             loading.value = false;
           }
@@ -1962,6 +1954,84 @@
                   borderRadius: 8
                 },
                 color: ['#165DFF', '#52C41A', '#FF4D4F']
+              }]
+            });
+          }
+          
+          // 申请趋势柱状图
+          const trendEl = document.getElementById('transferTrendChart');
+          if (trendEl) {
+            // 如果图表实例已存在，先销毁
+            if (chartInstances.value.transferTrend) {
+              try {
+                chartInstances.value.transferTrend.dispose();
+              } catch (e) {
+                // 忽略销毁错误
+              }
+            }
+            // 重新初始化图表
+            chartInstances.value.transferTrend = echarts.init(trendEl);
+          }
+          if (chartInstances.value.transferTrend) {
+            // 使用统计数据绘制趋势图
+            const trendData = {
+              categories: ['今日', '本周', '本月'],
+              values: [
+                transferStats.value?.today || 0,
+                transferStats.value?.week || 0,
+                transferStats.value?.month || 0
+              ]
+            };
+            
+            chartInstances.value.transferTrend.setOption({
+              tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                  type: 'shadow'
+                },
+                formatter: '{b}: {c} 件'
+              },
+              grid: {
+                left: '10%',
+                right: '10%',
+                bottom: '15%',
+                top: '10%',
+                containLabel: true
+              },
+              xAxis: {
+                type: 'category',
+                data: trendData.categories,
+                axisLabel: {
+                  fontSize: 12
+                }
+              },
+              yAxis: {
+                type: 'value',
+                name: '申请数',
+                nameTextStyle: {
+                  fontSize: 12
+                },
+                axisLabel: {
+                  fontSize: 12
+                }
+              },
+              series: [{
+                name: '申请数量',
+                type: 'bar',
+                data: trendData.values,
+                itemStyle: {
+                  color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    { offset: 0, color: '#165DFF' },
+                    { offset: 1, color: '#36CFC9' }
+                  ]),
+                  borderRadius: [4, 4, 0, 0]
+                },
+                label: {
+                  show: true,
+                  position: 'top',
+                  fontSize: 12,
+                  fontWeight: 'bold'
+                }
               }]
             });
           }
