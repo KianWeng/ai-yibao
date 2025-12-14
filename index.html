@@ -1580,11 +1580,22 @@
         
         // 初始化数据概览图表
         const initDashboardCharts = async () => {
+          await nextTick(); // 确保 DOM 渲染完成
+          
           const feeData = await api.get('/dashboard/fee-trend?type=' + feeType.value);
           
           // 医保费用趋势图
           const feeTrendEl = document.getElementById('feeTrendChart');
-          if (feeTrendEl && !chartInstances.value.feeTrend) {
+          if (feeTrendEl) {
+            // 如果图表实例已存在，先销毁
+            if (chartInstances.value.feeTrend) {
+              try {
+                chartInstances.value.feeTrend.dispose();
+              } catch (e) {
+                // 忽略销毁错误
+              }
+            }
+            // 重新初始化图表
             chartInstances.value.feeTrend = echarts.init(feeTrendEl);
           }
           if (chartInstances.value.feeTrend) {
@@ -1631,7 +1642,16 @@
           
           // 风控预警分布图
           const riskDistEl = document.getElementById('riskDistributionChart');
-          if (riskDistEl && !chartInstances.value.riskDistribution) {
+          if (riskDistEl) {
+            // 如果图表实例已存在，先销毁
+            if (chartInstances.value.riskDistribution) {
+              try {
+                chartInstances.value.riskDistribution.dispose();
+              } catch (e) {
+                // 忽略销毁错误
+              }
+            }
+            // 重新初始化图表
             chartInstances.value.riskDistribution = echarts.init(riskDistEl);
           }
           if (chartInstances.value.riskDistribution) {
@@ -1668,8 +1688,19 @@
         
         // 初始化DRG图表
         const initDrgChart = async () => {
+          await nextTick(); // 确保 DOM 渲染完成
+          
           const drgEl = document.getElementById('drgGroupChart');
-          if (drgEl && !chartInstances.value.drgGroup) {
+          if (drgEl) {
+            // 如果图表实例已存在，先销毁
+            if (chartInstances.value.drgGroup) {
+              try {
+                chartInstances.value.drgGroup.dispose();
+              } catch (e) {
+                // 忽略销毁错误
+              }
+            }
+            // 重新初始化图表
             chartInstances.value.drgGroup = echarts.init(drgEl);
           }
           if (chartInstances.value.drgGroup) {
@@ -1700,8 +1731,19 @@
         
         // 初始化转院申请图表
         const initTransferChart = async () => {
+          await nextTick(); // 确保 DOM 渲染完成
+          
           const transferEl = document.getElementById('transferApplyChart');
-          if (transferEl && !chartInstances.value.transferApply) {
+          if (transferEl) {
+            // 如果图表实例已存在，先销毁
+            if (chartInstances.value.transferApply) {
+              try {
+                chartInstances.value.transferApply.dispose();
+              } catch (e) {
+                // 忽略销毁错误
+              }
+            }
+            // 重新初始化图表
             chartInstances.value.transferApply = echarts.init(transferEl);
           }
           if (chartInstances.value.transferApply) {
@@ -1729,9 +1771,20 @@
         
         // 初始化风控图表
         const initRiskCharts = async () => {
+          await nextTick(); // 确保 DOM 渲染完成
+          
           // 风险类型分布图
           const riskTypeEl = document.getElementById('riskTypeChart');
-          if (riskTypeEl && !chartInstances.value.riskType) {
+          if (riskTypeEl) {
+            // 如果图表实例已存在，先销毁
+            if (chartInstances.value.riskType) {
+              try {
+                chartInstances.value.riskType.dispose();
+              } catch (e) {
+                // 忽略销毁错误
+              }
+            }
+            // 重新初始化图表
             chartInstances.value.riskType = echarts.init(riskTypeEl);
           }
           if (chartInstances.value.riskType) {
@@ -1762,7 +1815,16 @@
           
           // 风险等级分布图
           const riskLevelEl = document.getElementById('riskLevelChart');
-          if (riskLevelEl && !chartInstances.value.riskLevel) {
+          if (riskLevelEl) {
+            // 如果图表实例已存在，先销毁
+            if (chartInstances.value.riskLevel) {
+              try {
+                chartInstances.value.riskLevel.dispose();
+              } catch (e) {
+                // 忽略销毁错误
+              }
+            }
+            // 重新初始化图表
             chartInstances.value.riskLevel = echarts.init(riskLevelEl);
           }
           if (chartInstances.value.riskLevel) {
@@ -1801,17 +1863,19 @@
         
         // 监听菜单切换
         watch(activeMenu, (newVal) => {
-          nextTick(() => {
+          nextTick(async () => {
+            // 等待 DOM 完全渲染
+            await nextTick();
             if (newVal === 'dashboard') {
-              loadDashboard();
+              await loadDashboard();
             } else if (newVal === 'drg') {
-              loadDrgList();
+              await loadDrgList();
             } else if (newVal === 'rehabilitation') {
-              loadRehabList();
+              await loadRehabList();
               loadTransferList();
               loadTransferStats();
             } else if (newVal === 'risk-control') {
-              loadRiskData();
+              await loadRiskData();
             }
           });
         });
