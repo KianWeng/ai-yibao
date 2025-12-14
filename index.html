@@ -449,17 +449,43 @@
                 <el-option label="已拒绝" value="rejected"></el-option>
               </el-select>
             </div>
-            <el-table :data="transferList" border stripe :header-cell-style="{background: '#f5f7fa'}">
+            <el-table :data="transferList" border stripe :header-cell-style="{background: '#f5f7fa'}" v-loading="loading">
               <el-table-column prop="applyNo" label="申请单号" width="150"></el-table-column>
               <el-table-column prop="patientName" label="患者姓名" width="100"></el-table-column>
-              <el-table-column prop="fromHospital" label="转出医院"></el-table-column>
-              <el-table-column prop="toHospital" label="转入机构"></el-table-column>
-              <el-table-column prop="disease" label="疾病诊断"></el-table-column>
-              <el-table-column prop="applyTime" label="申请时间" width="180"></el-table-column>
-              <el-table-column label="操作" width="180">
+              <el-table-column prop="fromHospital" label="转出医院" width="150"></el-table-column>
+              <el-table-column prop="toHospital" label="转入机构" width="150"></el-table-column>
+              <el-table-column prop="disease" label="疾病诊断" width="120"></el-table-column>
+              <el-table-column label="状态" width="100">
                 <template #default="scope">
-                  <el-button type="text" size="small" class="text-success" @click="handleTransferApprove(scope.row)">通过</el-button>
-                  <el-button type="text" size="small" class="text-danger" @click="handleTransferReject(scope.row)">拒绝</el-button>
+                  <el-tag v-if="scope.row.status === 'pending'" type="warning" size="small">待审核</el-tag>
+                  <el-tag v-else-if="scope.row.status === 'approved'" type="success" size="small">已批准</el-tag>
+                  <el-tag v-else-if="scope.row.status === 'rejected'" type="danger" size="small">已拒绝</el-tag>
+                  <el-tag v-else type="info" size="small">{{ scope.row.status }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="applyTime" label="申请时间" width="180">
+                <template #default="scope">
+                  {{ formatDateTime(scope.row.applyTime) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="220" fixed="right">
+                <template #default="scope">
+                  <el-button type="text" size="small" @click="viewTransferDetail(scope.row)">详情</el-button>
+                  <el-button 
+                    v-if="scope.row.status === 'pending'"
+                    type="text" 
+                    size="small" 
+                    class="text-success" 
+                    @click="handleTransferApprove(scope.row)"
+                  >通过</el-button>
+                  <el-button 
+                    v-if="scope.row.status === 'pending'"
+                    type="text" 
+                    size="small" 
+                    class="text-danger" 
+                    @click="handleTransferReject(scope.row)"
+                  >拒绝</el-button>
+                  <span v-if="scope.row.status !== 'pending'" class="text-gray-400 text-sm">已处理</span>
                 </template>
               </el-table-column>
             </el-table>
@@ -1330,6 +1356,12 @@
         // 转院申请操作
         const handleTransferApprove = async (row) => {
           try {
+            // 检查申请状态
+            if (row.status !== 'pending') {
+              ElMessage.warning('该申请已处理，无法操作');
+              return;
+            }
+            
             const { value } = await ElMessageBox.prompt('请输入审批备注（可选）', '批准申请', {
               confirmButtonText: '确定',
               cancelButtonText: '取消',
@@ -1339,45 +1371,126 @@
             }).catch(() => ({ value: '' }));
             
             const result = await api.put(`/transfer/applications/${row.id}/approve`, { 
-              adminComment: value || '申请已批准' 
+              adminComment: value || ''
             });
             if (result !== null) {
               ElMessage.success('申请已批准');
               loadTransferList();
+              // 刷新统计信息
+              loadTransferStats();
             }
           } catch (e) {
             if (e !== 'cancel') {
               console.error('批准申请失败:', e);
+              ElMessage.error(e.message || '批准申请失败');
             }
           }
         };
         
         const handleTransferReject = async (row) => {
           try {
+            // 检查申请状态
+            if (row.status !== 'pending') {
+              ElMessage.warning('该申请已处理，无法操作');
+              return;
+            }
+            
             const { value } = await ElMessageBox.prompt('请输入拒绝原因', '拒绝申请', {
               confirmButtonText: '确定',
               cancelButtonText: '取消',
               inputType: 'textarea',
-              inputPlaceholder: '请输入拒绝原因',
+              inputPlaceholder: '请输入拒绝原因（必填）',
               inputValidator: (val) => {
                 if (!val || val.trim() === '') {
                   return '拒绝原因不能为空';
                 }
                 return true;
               }
-            });
+            }).catch(() => ({ value: null }));
             
-            const result = await api.put(`/transfer/applications/${row.id}/reject`, { 
-              adminComment: value 
-            });
-            if (result !== null) {
-              ElMessage.success('申请已拒绝');
-              loadTransferList();
+            if (value) {
+              const result = await api.put(`/transfer/applications/${row.id}/reject`, { 
+                adminComment: value 
+              });
+              if (result !== null) {
+                ElMessage.success('申请已拒绝');
+                loadTransferList();
+                // 刷新统计信息
+                loadTransferStats();
+              }
             }
           } catch (e) {
             if (e !== 'cancel') {
               console.error('拒绝申请失败:', e);
+              ElMessage.error(e.message || '拒绝申请失败');
             }
+          }
+        };
+        
+        // 查看转院申请详情
+        const viewTransferDetail = async (row) => {
+          try {
+            const data = await api.get(`/transfer/applications/${row.id}`);
+            if (data) {
+              ElMessageBox.alert(
+                `<div class="text-left space-y-2">
+                  <p><strong>申请单号：</strong>${data.apply_no || row.applyNo}</p>
+                  <p><strong>患者姓名：</strong>${data.patient_name || row.patientName}</p>
+                  <p><strong>身份证号：</strong>${data.patient_id_card || '未填写'}</p>
+                  <p><strong>联系电话：</strong>${data.patient_phone || '未填写'}</p>
+                  <p><strong>转出医院：</strong>${data.from_hospital || row.fromHospital || '未填写'}</p>
+                  <p><strong>转入医院：</strong>${data.to_hospital_name || data.to_hospital || row.toHospital || '未填写'}</p>
+                  <p><strong>疾病名称：</strong>${data.disease || '未填写'}</p>
+                  <p><strong>病情描述：</strong>${data.disease_description || '未填写'}</p>
+                  <p><strong>转院原因：</strong>${data.reason || '未填写'}</p>
+                  <p><strong>预期费用：</strong>¥${data.expected_cost || 0}</p>
+                  <p><strong>申请时间：</strong>${formatDateTime(data.apply_time || row.applyTime)}</p>
+                  <p><strong>状态：</strong>${data.status === 'pending' ? '待审核' : data.status === 'approved' ? '已批准' : '已拒绝'}</p>
+                  ${data.admin_comment ? `<p><strong>管理员备注：</strong>${data.admin_comment}</p>` : ''}
+                </div>`,
+                '转院申请详情',
+                {
+                  dangerouslyUseHTMLString: true,
+                  confirmButtonText: '关闭'
+                }
+              );
+            }
+          } catch (error) {
+            console.error('查看申请详情失败:', error);
+            ElMessage.error('获取申请详情失败');
+          }
+        };
+        
+        // 格式化日期时间
+        const formatDateTime = (dateString) => {
+          if (!dateString) return '';
+          const date = new Date(dateString);
+          return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        };
+        
+        // 加载转院申请统计
+        const loadTransferStats = async () => {
+          try {
+            const data = await api.get('/transfer/applications/stats');
+            if (data) {
+              transferStats.value = {
+                today: data.today || 0,
+                week: data.week || 0,
+                month: data.month || 0,
+                pending: data.pending || 0,
+                approved: data.approved || 0,
+                rejected: data.rejected || 0,
+                total: data.total || 0
+              };
+            }
+          } catch (error) {
+            console.error('加载统计信息失败:', error);
           }
         };
         
@@ -1696,10 +1809,18 @@
             } else if (newVal === 'rehabilitation') {
               loadRehabList();
               loadTransferList();
+              loadTransferStats();
             } else if (newVal === 'risk-control') {
               loadRiskData();
             }
           });
+        });
+        
+        // 监听转院申请状态筛选
+        watch(transferStatus, () => {
+          if (activeMenu.value === 'rehabilitation') {
+            loadTransferList();
+          }
         });
         
         // 监听费用类型变化
@@ -1751,8 +1872,13 @@
           handleDrgReset,
           handleDrgEdit,
           handleDrgDelete,
+          loadRehabList,
+          loadTransferList,
+          loadTransferStats,
           handleTransferApprove,
           handleTransferReject,
+          viewTransferDetail,
+          formatDateTime,
           handleSizeChange,
           handleCurrentChange,
           // AI助手相关

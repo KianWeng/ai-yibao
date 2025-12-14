@@ -320,6 +320,78 @@ router.get('/applications', authenticateToken, async (req, res) => {
 });
 
 /**
+ * GET /api/transfer/applications/stats
+ * 获取转院申请统计信息（仅管理员）
+ */
+router.get('/applications/stats', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        code: 403,
+        message: '无权限操作',
+        data: null
+      });
+    }
+    
+    // 获取各种状态的申请数量
+    const stats = {
+      total: 0,
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      today: 0,
+      week: 0,
+      month: 0
+    };
+    
+    // 总数量
+    const totalResult = await db.get('SELECT COUNT(*) as count FROM transfer_applications');
+    stats.total = totalResult?.count || 0;
+    
+    // 各状态数量
+    const pendingResult = await db.get("SELECT COUNT(*) as count FROM transfer_applications WHERE status = 'pending'");
+    stats.pending = pendingResult?.count || 0;
+    
+    const approvedResult = await db.get("SELECT COUNT(*) as count FROM transfer_applications WHERE status = 'approved'");
+    stats.approved = approvedResult?.count || 0;
+    
+    const rejectedResult = await db.get("SELECT COUNT(*) as count FROM transfer_applications WHERE status = 'rejected'");
+    stats.rejected = rejectedResult?.count || 0;
+    
+    // 今日申请数量
+    const todayResult = await db.get(
+      "SELECT COUNT(*) as count FROM transfer_applications WHERE DATE(apply_time) = DATE('now')"
+    );
+    stats.today = todayResult?.count || 0;
+    
+    // 本周申请数量
+    const weekResult = await db.get(
+      "SELECT COUNT(*) as count FROM transfer_applications WHERE DATE(apply_time) >= DATE('now', '-7 days')"
+    );
+    stats.week = weekResult?.count || 0;
+    
+    // 本月申请数量
+    const monthResult = await db.get(
+      "SELECT COUNT(*) as count FROM transfer_applications WHERE DATE(apply_time) >= DATE('now', 'start of month')"
+    );
+    stats.month = monthResult?.count || 0;
+    
+    res.json({
+      code: 200,
+      message: '获取成功',
+      data: stats
+    });
+  } catch (error) {
+    console.error('获取申请统计失败:', error);
+    res.status(500).json({
+      code: 500,
+      message: '服务器错误',
+      data: null
+    });
+  }
+});
+
+/**
  * GET /api/transfer/applications/:id
  * 获取转院申请详情
  */
@@ -380,12 +452,13 @@ router.put('/applications/:id/approve', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { adminComment } = req.body;
     
-    const result = await db.run(
-      'UPDATE transfer_applications SET status = ?, admin_comment = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      ['approved', adminComment || '', id]
+    // 先检查申请是否存在且状态为待审核
+    const application = await db.get(
+      'SELECT id, status FROM transfer_applications WHERE id = ?',
+      [id]
     );
     
-    if (result.changes === 0) {
+    if (!application) {
       return res.status(404).json({
         code: 404,
         message: '申请不存在',
@@ -393,10 +466,35 @@ router.put('/applications/:id/approve', authenticateToken, async (req, res) => {
       });
     }
     
+    if (application.status !== 'pending') {
+      return res.status(400).json({
+        code: 400,
+        message: `该申请已处理，当前状态：${application.status === 'approved' ? '已批准' : '已拒绝'}`,
+        data: null
+      });
+    }
+    
+    // 更新申请状态
+    const result = await db.run(
+      'UPDATE transfer_applications SET status = ?, admin_comment = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = ?',
+      ['approved', adminComment || '', id, 'pending']
+    );
+    
+    if (result.changes === 0) {
+      return res.status(400).json({
+        code: 400,
+        message: '申请状态已变更，无法批准',
+        data: null
+      });
+    }
+    
     res.json({
       code: 200,
       message: '申请已批准',
-      data: null
+      data: {
+        id: id,
+        status: 'approved'
+      }
     });
   } catch (error) {
     console.error('批准申请失败:', error);
@@ -425,7 +523,7 @@ router.put('/applications/:id/reject', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { adminComment } = req.body;
     
-    if (!adminComment) {
+    if (!adminComment || adminComment.trim() === '') {
       return res.status(400).json({
         code: 400,
         message: '拒绝原因不能为空',
@@ -433,12 +531,13 @@ router.put('/applications/:id/reject', authenticateToken, async (req, res) => {
       });
     }
     
-    const result = await db.run(
-      'UPDATE transfer_applications SET status = ?, admin_comment = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      ['rejected', adminComment, id]
+    // 先检查申请是否存在且状态为待审核
+    const application = await db.get(
+      'SELECT id, status FROM transfer_applications WHERE id = ?',
+      [id]
     );
     
-    if (result.changes === 0) {
+    if (!application) {
       return res.status(404).json({
         code: 404,
         message: '申请不存在',
@@ -446,10 +545,35 @@ router.put('/applications/:id/reject', authenticateToken, async (req, res) => {
       });
     }
     
+    if (application.status !== 'pending') {
+      return res.status(400).json({
+        code: 400,
+        message: `该申请已处理，当前状态：${application.status === 'approved' ? '已批准' : '已拒绝'}`,
+        data: null
+      });
+    }
+    
+    // 更新申请状态
+    const result = await db.run(
+      'UPDATE transfer_applications SET status = ?, admin_comment = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = ?',
+      ['rejected', adminComment.trim(), id, 'pending']
+    );
+    
+    if (result.changes === 0) {
+      return res.status(400).json({
+        code: 400,
+        message: '申请状态已变更，无法拒绝',
+        data: null
+      });
+    }
+    
     res.json({
       code: 200,
       message: '申请已拒绝',
-      data: null
+      data: {
+        id: id,
+        status: 'rejected'
+      }
     });
   } catch (error) {
     console.error('拒绝申请失败:', error);
