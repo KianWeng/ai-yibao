@@ -101,6 +101,169 @@ router.get('/statistics', async (req, res) => {
   }
 });
 
+// 新增DRG政策
+router.post('/', async (req, res) => {
+  try {
+    const { drgCode, drgName, diagnosis, paymentStandard, effectiveDate, status } = req.body;
+    
+    // 验证必填字段
+    if (!drgCode || !drgName) {
+      return res.status(400).json({
+        code: 400,
+        message: 'DRG编码和名称不能为空',
+        data: null
+      });
+    }
+    
+    // 检查DRG编码是否已存在
+    const existing = await db.get('SELECT id FROM drg_policies WHERE drg_code = ?', [drgCode]);
+    if (existing) {
+      return res.status(400).json({
+        code: 400,
+        message: 'DRG编码已存在',
+        data: null
+      });
+    }
+    
+    const result = await db.run(
+      'INSERT INTO drg_policies (drg_code, drg_name, diagnosis, payment_standard, effective_date, status) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        drgCode,
+        drgName,
+        diagnosis || '',
+        paymentStandard || 0,
+        effectiveDate || new Date().toISOString().split('T')[0],
+        status !== undefined ? status : 1
+      ]
+    );
+    
+    res.json({
+      code: 200,
+      message: '新增成功',
+      data: {
+        id: result.lastID
+      }
+    });
+  } catch (error) {
+    console.error('新增DRG政策失败:', error);
+    res.status(500).json({
+      code: 500,
+      message: '服务器错误',
+      data: null
+    });
+  }
+});
+
+// 获取单个DRG政策详情
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await db.get('SELECT * FROM drg_policies WHERE id = ?', [id]);
+    
+    if (!item) {
+      return res.status(404).json({
+        code: 404,
+        message: '记录不存在',
+        data: null
+      });
+    }
+    
+    res.json({
+      code: 200,
+      message: '获取成功',
+      data: {
+        id: item.id,
+        drgCode: item.drg_code,
+        drgName: item.drg_name,
+        diagnosis: item.diagnosis,
+        paymentStandard: item.payment_standard,
+        effectiveDate: item.effective_date,
+        status: item.status.toString()
+      }
+    });
+  } catch (error) {
+    console.error('获取DRG政策详情失败:', error);
+    res.status(500).json({
+      code: 500,
+      message: '服务器错误',
+      data: null
+    });
+  }
+});
+
+// 更新DRG政策
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { drgCode, drgName, diagnosis, paymentStandard, effectiveDate, status } = req.body;
+    
+    // 验证必填字段
+    if (!drgCode || !drgName) {
+      return res.status(400).json({
+        code: 400,
+        message: 'DRG编码和名称不能为空',
+        data: null
+      });
+    }
+    
+    // 检查记录是否存在并获取当前数据
+    const existing = await db.get('SELECT * FROM drg_policies WHERE id = ?', [id]);
+    if (!existing) {
+      return res.status(404).json({
+        code: 404,
+        message: '记录不存在',
+        data: null
+      });
+    }
+    
+    // 只有当DRG编码发生变化时，才检查是否被其他记录使用
+    if (existing.drg_code !== drgCode) {
+      const codeConflict = await db.get('SELECT id FROM drg_policies WHERE drg_code = ? AND id != ?', [drgCode, parseInt(id)]);
+      if (codeConflict) {
+        return res.status(400).json({
+          code: 400,
+          message: 'DRG编码已被其他记录使用',
+          data: null
+        });
+      }
+    }
+    
+    const result = await db.run(
+      'UPDATE drg_policies SET drg_code = ?, drg_name = ?, diagnosis = ?, payment_standard = ?, effective_date = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [
+        drgCode,
+        drgName,
+        diagnosis || '',
+        paymentStandard || 0,
+        effectiveDate || new Date().toISOString().split('T')[0],
+        status !== undefined ? status : 1,
+        id
+      ]
+    );
+    
+    if (result.changes > 0) {
+      res.json({
+        code: 200,
+        message: '更新成功',
+        data: null
+      });
+    } else {
+      res.status(404).json({
+        code: 404,
+        message: '记录不存在',
+        data: null
+      });
+    }
+  } catch (error) {
+    console.error('更新DRG政策失败:', error);
+    res.status(500).json({
+      code: 500,
+      message: '服务器错误',
+      data: null
+    });
+  }
+});
+
 // 删除DRG政策
 router.delete('/:id', async (req, res) => {
   try {

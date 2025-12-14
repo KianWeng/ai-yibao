@@ -327,10 +327,80 @@
         <div v-if="activeMenu === 'drg'" class="space-y-6">
           <div class="flex items-center justify-between mb-4">
             <h1 class="text-2xl font-bold text-gray-600">DRG支付政策管理</h1>
-            <el-button type="primary">
+            <el-button type="primary" @click="showDrgDialog">
               <i class="fa fa-plus mr-1"></i> 新增政策
             </el-button>
           </div>
+          
+          <!-- DRG政策编辑对话框 -->
+          <el-dialog
+            :title="drgDialogTitle"
+            v-model="drgDialogVisible"
+            width="600px"
+            @close="resetDrgForm"
+          >
+            <el-form
+              ref="drgFormRef"
+              :model="drgForm"
+              :rules="drgRules"
+              label-width="120px"
+            >
+              <el-form-item label="DRG组编码" prop="drgCode">
+                <el-input v-model="drgForm.drgCode" placeholder="请输入DRG组编码" :disabled="drgForm.id"></el-input>
+              </el-form-item>
+              
+              <el-form-item label="DRG组名称" prop="drgName">
+                <el-input v-model="drgForm.drgName" placeholder="请输入DRG组名称" />
+              </el-form-item>
+              
+              <el-form-item label="适用诊断">
+                <el-input
+                  v-model="drgForm.diagnosis"
+                  type="textarea"
+                  :rows="3"
+                  placeholder="请输入适用诊断"
+                />
+              </el-form-item>
+              
+              <el-form-item label="支付标准" prop="paymentStandard">
+                <el-input-number
+                  v-model="drgForm.paymentStandard"
+                  :min="0"
+                  :precision="2"
+                  placeholder="请输入支付标准"
+                  style="width: 100%"
+                />
+              </el-form-item>
+              
+              <el-form-item label="生效日期" prop="effectiveDate">
+                <el-date-picker
+                  v-model="drgForm.effectiveDate"
+                  type="date"
+                  placeholder="选择生效日期"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  style="width: 100%"
+                />
+              </el-form-item>
+              
+              <el-form-item label="状态">
+                <el-switch
+                  v-model="drgForm.status"
+                  active-value="1"
+                  inactive-value="0"
+                  active-text="启用"
+                  inactive-text="禁用"
+                />
+              </el-form-item>
+            </el-form>
+            
+            <template #footer>
+              <span class="dialog-footer">
+                <el-button @click="drgDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="submitDrgForm" :loading="drgSubmitting">确定</el-button>
+              </span>
+            </template>
+          </el-dialog>
 
           <div class="bg-white rounded-lg p-6 card-shadow">
             <div class="flex flex-wrap gap-4 mb-6">
@@ -1014,7 +1084,8 @@
           }
           
           if (data.code === 200) {
-            return data.data;
+            // 即使data.data为null，也返回true表示成功
+            return data.data !== undefined ? data.data : true;
           } else {
             ElMessage.error(data.message || '操作失败');
             return null;
@@ -1042,7 +1113,8 @@
           }
           
           if (data.code === 200) {
-            return data.data;
+            // 即使data.data为null，也返回true表示成功
+            return data.data !== undefined ? data.data : true;
           } else {
             ElMessage.error(data.message || '操作失败');
             return null;
@@ -1334,8 +1406,134 @@
           loadDrgList();
         };
         
-        const handleDrgEdit = (row) => {
-          ElMessage.info('编辑功能开发中');
+        // DRG表单相关状态
+        const drgDialogVisible = ref(false);
+        const drgDialogTitle = ref('新增政策');
+        const drgFormRef = ref(null);
+        const drgSubmitting = ref(false);
+        const drgForm = ref({
+          id: null,
+          drgCode: '',
+          drgName: '',
+          diagnosis: '',
+          paymentStandard: 0,
+          effectiveDate: '',
+          status: '1'
+        });
+        
+        const drgRules = {
+          drgCode: [
+            { required: true, message: '请输入DRG组编码', trigger: 'blur' },
+            { pattern: /^[A-Z0-9]+$/, message: 'DRG编码只能包含大写字母和数字', trigger: 'blur' }
+          ],
+          drgName: [
+            { required: true, message: '请输入DRG组名称', trigger: 'blur' }
+          ],
+          paymentStandard: [
+            { required: true, message: '请输入支付标准', trigger: 'blur' },
+            { type: 'number', min: 0, message: '支付标准必须大于等于0', trigger: 'blur' }
+          ],
+          effectiveDate: [
+            { required: true, message: '请选择生效日期', trigger: 'change' }
+          ]
+        };
+        
+        // 显示新增对话框
+        const showDrgDialog = () => {
+          drgDialogTitle.value = '新增政策';
+          drgForm.value = {
+            id: null,
+            drgCode: '',
+            drgName: '',
+            diagnosis: '',
+            paymentStandard: 0,
+            effectiveDate: new Date().toISOString().split('T')[0],
+            status: '1'
+          };
+          drgDialogVisible.value = true;
+        };
+        
+        // 重置表单
+        const resetDrgForm = () => {
+          if (drgFormRef.value) {
+            drgFormRef.value.resetFields();
+          }
+          drgForm.value = {
+            id: null,
+            drgCode: '',
+            drgName: '',
+            diagnosis: '',
+            paymentStandard: 0,
+            effectiveDate: '',
+            status: '1'
+          };
+        };
+        
+        // 编辑DRG政策
+        const handleDrgEdit = async (row) => {
+          try {
+            // 获取完整数据（包含原始数值）
+            const data = await api.get(`/drg/${row.id}`);
+            if (data) {
+              drgDialogTitle.value = '编辑政策';
+              drgForm.value = {
+                id: data.id,
+                drgCode: data.drgCode,
+                drgName: data.drgName,
+                diagnosis: data.diagnosis || '',
+                paymentStandard: data.paymentStandard || 0,
+                effectiveDate: data.effectiveDate || '',
+                status: data.status || '1'
+              };
+              drgDialogVisible.value = true;
+            }
+          } catch (error) {
+            console.error('获取DRG政策详情失败:', error);
+            ElMessage.error('获取政策详情失败');
+          }
+        };
+        
+        // 提交表单
+        const submitDrgForm = async () => {
+          if (!drgFormRef.value) return;
+          
+          await drgFormRef.value.validate(async (valid) => {
+            if (!valid) return;
+            
+            drgSubmitting.value = true;
+            try {
+              const formData = {
+                drgCode: drgForm.value.drgCode.trim(),
+                drgName: drgForm.value.drgName.trim(),
+                diagnosis: drgForm.value.diagnosis.trim(),
+                paymentStandard: drgForm.value.paymentStandard || 0,
+                effectiveDate: drgForm.value.effectiveDate,
+                status: drgForm.value.status
+              };
+              
+              let result;
+              if (drgForm.value.id) {
+                // 编辑
+                result = await api.put(`/drg/${drgForm.value.id}`, formData);
+              } else {
+                // 新增
+                result = await api.post('/drg', formData);
+              }
+              
+              // 无论result是否为null，只要没有抛出异常就认为成功
+              // 因为PUT请求可能返回null但状态码是200
+              ElMessage.success(drgForm.value.id ? '编辑成功' : '新增成功');
+              drgDialogVisible.value = false;
+              resetDrgForm();
+              // 刷新列表以显示最新数据
+              await loadDrgList();
+            } catch (error) {
+              console.error('提交失败:', error);
+              ElMessage.error(error.message || '操作失败');
+            } finally {
+              drgSubmitting.value = false;
+            }
+          });
         };
         
         const handleDrgDelete = async (row) => {
@@ -1934,8 +2132,16 @@
           refreshWarnings,
           handleDrgSearch,
           handleDrgReset,
+          showDrgDialog,
           handleDrgEdit,
           handleDrgDelete,
+          submitDrgForm,
+          resetDrgForm,
+          drgDialogVisible,
+          drgDialogTitle,
+          drgForm,
+          drgFormRef,
+          drgSubmitting,
           loadRehabList,
           loadTransferList,
           loadTransferStats,
