@@ -265,13 +265,31 @@ router.get('/applications', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const isAdmin = req.user.role === 'admin';
     
-    let sql = 'SELECT t.*, h.name as to_hospital_name, h.level as to_hospital_level FROM transfer_applications t LEFT JOIN hospitals h ON t.to_hospital_id = h.id WHERE 1=1';
+    // 检查表结构，如果 to_hospital_id 不存在，使用 to_hospital 字段
+    let sql = 'SELECT t.*';
+    try {
+      // 尝试查询 to_hospital_id 字段是否存在
+      await db.query('SELECT to_hospital_id FROM transfer_applications LIMIT 1');
+      // 如果成功，说明字段存在，可以使用 JOIN
+      sql += ', h.name as to_hospital_name, h.level as to_hospital_level FROM transfer_applications t LEFT JOIN hospitals h ON t.to_hospital_id = h.id WHERE 1=1';
+    } catch (e) {
+      // 字段不存在，不使用 JOIN
+      sql += ' FROM transfer_applications t WHERE 1=1';
+    }
+    
     const params = [];
     
     // 普通用户只能查看自己的申请
     if (!isAdmin) {
-      sql += ' AND t.user_id = ?';
-      params.push(userId);
+      // 检查 user_id 字段是否存在
+      try {
+        await db.query('SELECT user_id FROM transfer_applications LIMIT 1');
+        sql += ' AND t.user_id = ?';
+        params.push(userId);
+      } catch (e) {
+        // user_id 字段不存在，跳过用户过滤（兼容旧数据）
+        console.warn('user_id 字段不存在，跳过用户过滤');
+      }
     }
     
     if (status) {

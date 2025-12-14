@@ -163,11 +163,23 @@ router.post('/register', async (req, res) => {
     // 加密密码
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // 检查表结构，决定使用哪些字段
+    let insertSql, insertParams;
+    try {
+      // 尝试查询 phone 字段是否存在
+      await db.query('SELECT phone FROM users LIMIT 1');
+      // 字段存在，使用完整字段列表
+      insertSql = 'INSERT INTO users (username, password, real_name, phone, id_card, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)';
+      insertParams = [username, hashedPassword, realName || '', phone || '', idCard || '', 'user', 1];
+    } catch (e) {
+      // 字段不存在，使用基础字段列表
+      console.warn('phone 字段不存在，使用基础字段注册');
+      insertSql = 'INSERT INTO users (username, password, real_name, role, status) VALUES (?, ?, ?, ?, ?)';
+      insertParams = [username, hashedPassword, realName || '', 'user', 1];
+    }
+
     // 创建用户（默认角色为普通用户）
-    const result = await db.run(
-      'INSERT INTO users (username, password, real_name, phone, id_card, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [username, hashedPassword, realName || '', phone || '', idCard || '', 'user', 1]
-    );
+    const result = await db.run(insertSql, insertParams);
 
     res.json({
       code: 200,

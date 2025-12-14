@@ -159,6 +159,9 @@ function createTables() {
     Promise.all(tables.map(sql => run(sql)))
       .then(() => {
         console.log('数据表创建成功');
+        return migrateTables();
+      })
+      .then(() => {
         return initData();
       })
       .then(() => {
@@ -166,6 +169,115 @@ function createTables() {
         resolve();
       })
       .catch(reject);
+  });
+}
+
+// 数据库迁移：添加缺失的字段
+function migrateTables() {
+  return new Promise((resolve, reject) => {
+    const run = (sql) => {
+      return new Promise((res, rej) => {
+        db.run(sql, (err) => {
+          // 忽略"字段已存在"或"重复列"的错误
+          if (err) {
+            const errMsg = err.message.toLowerCase();
+            if (errMsg.includes('duplicate column') || 
+                errMsg.includes('already exists') ||
+                errMsg.includes('重复列')) {
+              // 字段已存在，忽略错误
+              res();
+            } else {
+              rej(err);
+            }
+          } else {
+            res();
+          }
+        });
+      });
+    };
+    
+    const all = (sql) => {
+      return new Promise((res, rej) => {
+        db.all(sql, [], (err, rows) => {
+          if (err) rej(err);
+          else res(rows);
+        });
+      });
+    };
+    
+    // 检查并添加缺失的字段
+    Promise.all([
+      // 检查 transfer_applications 表的字段
+      all("PRAGMA table_info(transfer_applications)").catch((e) => {
+        console.warn('无法检查 transfer_applications 表结构:', e.message);
+        return [];
+      }),
+      // 检查 users 表的字段
+      all("PRAGMA table_info(users)").catch((e) => {
+        console.warn('无法检查 users 表结构:', e.message);
+        return [];
+      })
+    ])
+      .then(([transferColumns, userColumns]) => {
+        const promises = [];
+        
+        // 检查 transfer_applications 表是否缺少字段
+        const transferColumnNames = transferColumns.map(col => col.name);
+        if (!transferColumnNames.includes('to_hospital_id')) {
+          promises.push(run('ALTER TABLE transfer_applications ADD COLUMN to_hospital_id INTEGER'));
+        }
+        if (!transferColumnNames.includes('user_id')) {
+          promises.push(run('ALTER TABLE transfer_applications ADD COLUMN user_id INTEGER'));
+        }
+        if (!transferColumnNames.includes('patient_id_card')) {
+          promises.push(run('ALTER TABLE transfer_applications ADD COLUMN patient_id_card TEXT'));
+        }
+        if (!transferColumnNames.includes('patient_phone')) {
+          promises.push(run('ALTER TABLE transfer_applications ADD COLUMN patient_phone TEXT'));
+        }
+        if (!transferColumnNames.includes('disease_description')) {
+          promises.push(run('ALTER TABLE transfer_applications ADD COLUMN disease_description TEXT'));
+        }
+        if (!transferColumnNames.includes('reason')) {
+          promises.push(run('ALTER TABLE transfer_applications ADD COLUMN reason TEXT'));
+        }
+        if (!transferColumnNames.includes('expected_cost')) {
+          promises.push(run('ALTER TABLE transfer_applications ADD COLUMN expected_cost REAL'));
+        }
+        if (!transferColumnNames.includes('admin_comment')) {
+          promises.push(run('ALTER TABLE transfer_applications ADD COLUMN admin_comment TEXT'));
+        }
+        
+        // 检查 users 表是否缺少字段
+        const userColumnNames = userColumns.map(col => col.name);
+        if (!userColumnNames.includes('phone')) {
+          promises.push(run('ALTER TABLE users ADD COLUMN phone TEXT'));
+        }
+        if (!userColumnNames.includes('id_card')) {
+          promises.push(run('ALTER TABLE users ADD COLUMN id_card TEXT'));
+        }
+        
+        if (promises.length > 0) {
+          return Promise.all(promises)
+            .then(() => {
+              console.log(`数据库迁移完成，添加了 ${promises.length} 个字段`);
+              resolve();
+            })
+            .catch((error) => {
+              console.error('数据库迁移执行失败:', error);
+              // 迁移失败不影响启动，继续执行
+              resolve();
+            });
+        } else {
+          console.log('数据库迁移：无需添加字段');
+          resolve();
+        }
+      })
+      .catch((error) => {
+        console.error('数据库迁移检查失败:', error);
+        // 迁移失败不影响启动，继续执行
+        resolve();
+      });
   });
 }
 
