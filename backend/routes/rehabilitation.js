@@ -26,7 +26,12 @@ router.get('/institutions', async (req, res) => {
       level: item.level,
       bedCount: item.bed_count,
       specialty: item.specialty,
-      status: item.status
+      status: item.status,
+      rating: item.rating,
+      priceLevel: item.price_level,
+      address: item.address,
+      phone: item.phone,
+      description: item.description
     }));
     
     res.json({
@@ -41,6 +46,212 @@ router.get('/institutions', async (req, res) => {
     res.status(500).json({
       code: 500,
       message: '服务器错误',
+      data: null
+    });
+  }
+});
+
+// 获取康复机构详情
+router.get('/institutions/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const institution = await db.get(
+      'SELECT * FROM rehabilitation_institutions WHERE id = ?',
+      [id]
+    );
+    
+    if (!institution) {
+      return res.status(404).json({
+        code: 404,
+        message: '康复机构不存在',
+        data: null
+      });
+    }
+    
+    res.json({
+      code: 200,
+      message: '获取成功',
+      data: {
+        id: institution.id,
+        name: institution.name,
+        level: institution.level,
+        bedCount: institution.bed_count,
+        specialty: institution.specialty,
+        status: institution.status,
+        rating: institution.rating,
+        priceLevel: institution.price_level,
+        address: institution.address,
+        phone: institution.phone,
+        description: institution.description,
+        createdAt: institution.created_at,
+        updatedAt: institution.updated_at
+      }
+    });
+  } catch (error) {
+    console.error('获取康复机构详情失败:', error);
+    res.status(500).json({
+      code: 500,
+      message: '服务器错误',
+      data: null
+    });
+  }
+});
+
+// 新增康复机构
+router.post('/institutions', async (req, res) => {
+  try {
+    const { name, level, bedCount, specialty, status, rating, priceLevel, address, phone, description } = req.body;
+    
+    // 验证必填字段
+    if (!name) {
+      return res.status(400).json({
+        code: 400,
+        message: '机构名称不能为空',
+        data: null
+      });
+    }
+    
+    // 检查机构名称是否已存在
+    const existing = await db.get(
+      'SELECT id FROM rehabilitation_institutions WHERE name = ?',
+      [name]
+    );
+    
+    if (existing) {
+      return res.status(400).json({
+        code: 400,
+        message: '机构名称已存在',
+        data: null
+      });
+    }
+    
+    // 确保数据类型正确
+    const bedCountNum = bedCount !== undefined && bedCount !== null ? parseInt(bedCount, 10) : 0;
+    const ratingNum = rating !== undefined && rating !== null ? parseFloat(rating) : 0;
+    
+    const result = await db.run(
+      `INSERT INTO rehabilitation_institutions 
+       (name, level, bed_count, specialty, status, rating, price_level, address, phone, description) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        name,
+        level || '',
+        bedCountNum,
+        specialty || '',
+        status || '营业中',
+        ratingNum,
+        priceLevel || '中等',
+        address || '',
+        phone || '',
+        description || ''
+      ]
+    );
+    
+    res.json({
+      code: 200,
+      message: '新增成功',
+      data: {
+        id: result.lastID
+      }
+    });
+  } catch (error) {
+    console.error('新增康复机构失败:', error);
+    res.status(500).json({
+      code: 500,
+      message: '服务器错误',
+      data: null
+    });
+  }
+});
+
+// 更新康复机构
+router.put('/institutions/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, level, bedCount, specialty, status, rating, priceLevel, address, phone, description } = req.body;
+    
+    // 验证必填字段
+    if (!name) {
+      return res.status(400).json({
+        code: 400,
+        message: '机构名称不能为空',
+        data: null
+      });
+    }
+    
+    // 检查记录是否存在
+    const existing = await db.get(
+      'SELECT id, name FROM rehabilitation_institutions WHERE id = ?',
+      [id]
+    );
+    
+    if (!existing) {
+      return res.status(404).json({
+        code: 404,
+        message: '康复机构不存在',
+        data: null
+      });
+    }
+    
+    // 如果机构名称发生变化，检查是否与其他记录冲突
+    if (existing.name !== name) {
+      const nameConflict = await db.get(
+        'SELECT id FROM rehabilitation_institutions WHERE name = ? AND id != ?',
+        [name, id]
+      );
+      
+      if (nameConflict) {
+        return res.status(400).json({
+          code: 400,
+          message: '机构名称已被其他记录使用',
+          data: null
+        });
+      }
+    }
+    
+    // 确保数据类型正确
+    const bedCountNum = bedCount !== undefined && bedCount !== null ? parseInt(bedCount, 10) : 0;
+    const ratingNum = rating !== undefined && rating !== null ? parseFloat(rating) : 0;
+    
+    const result = await db.run(
+      `UPDATE rehabilitation_institutions 
+       SET name = ?, level = ?, bed_count = ?, specialty = ?, status = ?, rating = ?, 
+           price_level = ?, address = ?, phone = ?, description = ?, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [
+        name,
+        level || '',
+        bedCountNum,
+        specialty || '',
+        status || '营业中',
+        ratingNum,
+        priceLevel || '中等',
+        address || '',
+        phone || '',
+        description || '',
+        parseInt(id, 10)
+      ]
+    );
+    
+    if (result.changes > 0) {
+      res.json({
+        code: 200,
+        message: '更新成功',
+        data: null
+      });
+    } else {
+      res.status(404).json({
+        code: 404,
+        message: '记录不存在',
+        data: null
+      });
+    }
+  } catch (error) {
+    console.error('更新康复机构失败:', error);
+    res.status(500).json({
+      code: 500,
+      message: error.message || '服务器错误',
       data: null
     });
   }

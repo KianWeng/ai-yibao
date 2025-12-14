@@ -216,9 +216,14 @@ function migrateTables() {
       all("PRAGMA table_info(users)").catch((e) => {
         console.warn('无法检查 users 表结构:', e.message);
         return [];
+      }),
+      // 检查 rehabilitation_institutions 表的字段
+      all("PRAGMA table_info(rehabilitation_institutions)").catch((e) => {
+        console.warn('无法检查 rehabilitation_institutions 表结构:', e.message);
+        return [];
       })
     ])
-      .then(([transferColumns, userColumns]) => {
+      .then(([transferColumns, userColumns, rehabColumns]) => {
         const promises = [];
         
         // 检查 transfer_applications 表是否缺少字段
@@ -255,6 +260,27 @@ function migrateTables() {
         }
         if (!userColumnNames.includes('id_card')) {
           promises.push(run('ALTER TABLE users ADD COLUMN id_card TEXT'));
+        }
+        
+        // 检查 rehabilitation_institutions 表是否缺少字段
+        const rehabColumnNames = rehabColumns.map(col => col.name);
+        if (!rehabColumnNames.includes('rating')) {
+          promises.push(run('ALTER TABLE rehabilitation_institutions ADD COLUMN rating REAL DEFAULT 0'));
+        }
+        if (!rehabColumnNames.includes('price_level')) {
+          promises.push(run('ALTER TABLE rehabilitation_institutions ADD COLUMN price_level TEXT DEFAULT \'中等\''));
+        }
+        if (!rehabColumnNames.includes('address')) {
+          promises.push(run('ALTER TABLE rehabilitation_institutions ADD COLUMN address TEXT'));
+        }
+        if (!rehabColumnNames.includes('phone')) {
+          promises.push(run('ALTER TABLE rehabilitation_institutions ADD COLUMN phone TEXT'));
+        }
+        if (!rehabColumnNames.includes('description')) {
+          promises.push(run('ALTER TABLE rehabilitation_institutions ADD COLUMN description TEXT'));
+        }
+        if (!rehabColumnNames.includes('updated_at')) {
+          promises.push(run('ALTER TABLE rehabilitation_institutions ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP'));
         }
         
         if (promises.length > 0) {
