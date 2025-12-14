@@ -25,6 +25,18 @@
         @apply shadow-md hover:shadow-lg transition-shadow duration-300;
       }
     }
+    
+    /* AI助手动画 */
+    .slide-left-enter-active,
+    .slide-left-leave-active {
+      transition: transform 0.3s ease;
+    }
+    .slide-left-enter-from {
+      transform: translateX(100%);
+    }
+    .slide-left-leave-to {
+      transform: translateX(100%);
+    }
   </style>
   
   <script>
@@ -71,13 +83,25 @@
             <i class="fa fa-bell-o"></i>
           </el-icon>
         </el-badge>
-        <div class="flex items-center">
-          <img src="https://picsum.photos/id/1005/40/40" alt="用户头像" class="w-8 h-8 rounded-full mr-2">
-          <span class="text-gray-600">管理员</span>
-          <el-icon class="ml-1 text-gray-400">
-            <i class="fa fa-angle-down"></i>
-          </el-icon>
-        </div>
+        <el-dropdown @command="handleUserCommand" trigger="click">
+          <div class="flex items-center cursor-pointer">
+            <img src="https://picsum.photos/id/1005/40/40" alt="用户头像" class="w-8 h-8 rounded-full mr-2">
+            <span class="text-gray-600">{{ userInfo.realName || userInfo.username || '管理员' }}</span>
+            <el-icon class="ml-1 text-gray-400">
+              <i class="fa fa-angle-down"></i>
+            </el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="profile">
+                <i class="fa fa-user mr-2"></i>个人中心
+              </el-dropdown-item>
+              <el-dropdown-item command="logout" divided>
+                <i class="fa fa-sign-out mr-2"></i>退出登录
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </header>
 
@@ -535,6 +559,115 @@
           </div>
         </div>
       </main>
+      
+      <!-- AI助手对话框 -->
+      <div class="relative">
+        <!-- 展开/收起按钮 -->
+        <button
+          v-if="!aiAssistantVisible"
+          @click="aiAssistantVisible = true"
+          class="fixed right-4 bottom-4 w-14 h-14 bg-primary text-white rounded-full shadow-lg hover:bg-blue-600 transition-all duration-300 flex items-center justify-center z-50"
+          title="打开AI助手"
+        >
+          <i class="fa fa-comments text-xl"></i>
+        </button>
+        
+        <!-- AI助手面板 -->
+        <transition name="slide-left">
+          <div
+            v-if="aiAssistantVisible"
+            class="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col"
+          >
+            <!-- 头部 -->
+            <div class="bg-primary text-white p-4 flex items-center justify-between">
+              <div class="flex items-center">
+                <i class="fa fa-robot text-xl mr-2"></i>
+                <span class="font-semibold">AI助手</span>
+              </div>
+              <button
+                @click="aiAssistantVisible = false"
+                class="text-white hover:text-gray-200 transition-colors"
+              >
+                <i class="fa fa-times text-lg"></i>
+              </button>
+            </div>
+            
+            <!-- 消息列表 -->
+            <div
+              ref="aiMessageContainer"
+              class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
+            >
+              <!-- 欢迎消息 -->
+              <div v-if="aiMessages.length === 0" class="text-center text-gray-400 py-8">
+                <i class="fa fa-comments text-4xl mb-2"></i>
+                <p>我是医保欺诈检测AI助手</p>
+                <p class="text-sm mt-2">可以问我任何关于医保欺诈检测的问题</p>
+              </div>
+              
+              <!-- 消息项 -->
+              <div
+                v-for="(msg, index) in aiMessages"
+                :key="index"
+                class="flex"
+                :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
+              >
+                <div
+                  class="max-w-[80%] rounded-lg p-3"
+                  :class="msg.role === 'user' ? 'bg-primary text-white' : 'bg-white text-gray-800 shadow-sm'"
+                >
+                  <div class="text-sm whitespace-pre-wrap">{{ msg.content }}</div>
+                  <div
+                    class="text-xs mt-1 opacity-70"
+                    :class="msg.role === 'user' ? 'text-white' : 'text-gray-500'"
+                  >
+                    {{ formatTime(msg.timestamp) }}
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 加载中 -->
+              <div v-if="aiLoading" class="flex justify-start">
+                <div class="bg-white rounded-lg p-3 shadow-sm">
+                  <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 输入区域 -->
+            <div class="border-t border-gray-200 p-4 bg-white">
+              <div class="flex space-x-2">
+                <el-input
+                  v-model="aiInputMessage"
+                  placeholder="输入您的问题..."
+                  @keyup.enter="sendAIMessage"
+                  :disabled="aiLoading"
+                  clearable
+                >
+                  <template #prefix>
+                    <i class="fa fa-paper-plane text-gray-400"></i>
+                  </template>
+                </el-input>
+                <el-button
+                  type="primary"
+                  @click="sendAIMessage"
+                  :loading="aiLoading"
+                  :disabled="!aiInputMessage.trim()"
+                >
+                  <i class="fa fa-send mr-1"></i>
+                  发送
+                </el-button>
+              </div>
+              <div class="mt-2 text-xs text-gray-400">
+                <span>提示：可以询问关于风险分析、欺诈检测等问题</span>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
     </div>
   </div>
 
@@ -545,12 +678,38 @@
     // API基础配置
     const API_BASE_URL = 'http://zephyr-w.online:3000/api';
     
+    // 获取token
+    const getToken = () => {
+      return localStorage.getItem('token');
+    };
+    
+    // 获取请求头
+    const getHeaders = () => {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = getToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      return headers;
+    };
+    
     // API请求工具函数
     const api = {
       async get(url) {
         try {
-          const response = await fetch(`${API_BASE_URL}${url}`);
+          const response = await fetch(`${API_BASE_URL}${url}`, {
+            headers: getHeaders()
+          });
           const data = await response.json();
+          
+          // 如果token过期，跳转到登录页
+          if (data.code === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+            return null;
+          }
+          
           if (data.code === 200) {
             return data.data;
           } else {
@@ -567,10 +726,18 @@
         try {
           const response = await fetch(`${API_BASE_URL}${url}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getHeaders(),
             body: JSON.stringify(body)
           });
           const data = await response.json();
+          
+          if (data.code === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+            return null;
+          }
+          
           if (data.code === 200) {
             return data.data;
           } else {
@@ -587,10 +754,18 @@
         try {
           const response = await fetch(`${API_BASE_URL}${url}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getHeaders(),
             body: JSON.stringify(body)
           });
           const data = await response.json();
+          
+          if (data.code === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+            return null;
+          }
+          
           if (data.code === 200) {
             return data.data;
           } else {
@@ -606,9 +781,18 @@
       async delete(url) {
         try {
           const response = await fetch(`${API_BASE_URL}${url}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getHeaders()
           });
           const data = await response.json();
+          
+          if (data.code === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+            return null;
+          }
+          
           if (data.code === 200) {
             return data.data;
           } else {
@@ -625,6 +809,77 @@
     
     const app = createApp({
       setup() {
+        // 用户信息
+        const userInfo = ref({
+          username: '',
+          realName: '',
+          role: ''
+        });
+        
+        // 检查登录状态
+        const checkAuth = async () => {
+          const token = getToken();
+          if (!token) {
+            window.location.href = 'login.html';
+            return false;
+          }
+          
+          // 从localStorage获取用户信息
+          const savedUser = localStorage.getItem('user');
+          if (savedUser) {
+            try {
+              userInfo.value = JSON.parse(savedUser);
+            } catch (e) {
+              console.error('解析用户信息失败:', e);
+            }
+          }
+          
+          // 验证token有效性
+          try {
+            const data = await api.get('/auth/me');
+            if (data) {
+              userInfo.value = data;
+              localStorage.setItem('user', JSON.stringify(data));
+            }
+          } catch (error) {
+            console.error('验证token失败:', error);
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+            return false;
+          }
+          
+          return true;
+        };
+        
+        // 处理用户菜单命令
+        const handleUserCommand = async (command) => {
+          if (command === 'logout') {
+            ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+              confirmButtonText: '确定',
+              cancelButtonText: '取消',
+              type: 'warning'
+            }).then(async () => {
+              // 调用登出接口
+              await api.post('/auth/logout');
+              // 清除本地存储
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              // 跳转到登录页
+              window.location.href = 'login.html';
+            }).catch(() => {});
+          } else if (command === 'profile') {
+            ElMessage.info('个人中心功能开发中...');
+          }
+        };
+        
+        // AI助手状态
+        const aiAssistantVisible = ref(false);
+        const aiMessages = ref([]);
+        const aiInputMessage = ref('');
+        const aiLoading = ref(false);
+        const aiMessageContainer = ref(null);
+        
         // 状态管理
         const activeMenu = ref('dashboard');
         const dateRange = ref([]);
@@ -830,6 +1085,79 @@
           drgCurrentPage.value = val;
           loadDrgList();
         };
+        
+        // AI助手相关方法
+        const formatTime = (timestamp) => {
+          if (!timestamp) return '';
+          const date = new Date(timestamp);
+          const hours = date.getHours().toString().padStart(2, '0');
+          const minutes = date.getMinutes().toString().padStart(2, '0');
+          return `${hours}:${minutes}`;
+        };
+        
+        const scrollToBottom = () => {
+          nextTick(() => {
+            if (aiMessageContainer.value) {
+              aiMessageContainer.value.scrollTop = aiMessageContainer.value.scrollHeight;
+            }
+          });
+        };
+        
+        const sendAIMessage = async () => {
+          const message = aiInputMessage.value.trim();
+          if (!message || aiLoading.value) return;
+          
+          // 添加用户消息
+          const userMessage = {
+            role: 'user',
+            content: message,
+            timestamp: new Date().toISOString()
+          };
+          aiMessages.value.push(userMessage);
+          aiInputMessage.value = '';
+          scrollToBottom();
+          
+          // 发送到AI助手
+          aiLoading.value = true;
+          try {
+            const data = await api.post('/ai-assistant/chat', {
+              message: message,
+              context: {
+                // 可以添加当前页面的上下文数据
+                currentPage: activeMenu.value
+              }
+            });
+            
+            if (data && data.response) {
+              // 添加AI回复
+              aiMessages.value.push({
+                role: 'assistant',
+                content: data.response,
+                timestamp: data.timestamp || new Date().toISOString()
+              });
+              scrollToBottom();
+            } else {
+              ElMessage.error('AI助手暂时无法响应，请稍后重试');
+            }
+          } catch (error) {
+            console.error('发送AI消息失败:', error);
+            ElMessage.error('发送消息失败，请检查网络连接');
+          } finally {
+            aiLoading.value = false;
+          }
+        };
+        
+        // 监听消息变化，自动滚动到底部
+        watch(aiMessages, () => {
+          scrollToBottom();
+        }, { deep: true });
+        
+        // 监听加载状态，自动滚动
+        watch(aiLoading, (newVal) => {
+          if (!newVal) {
+            scrollToBottom();
+          }
+        });
         
         // 初始化数据概览图表
         const initDashboardCharts = async () => {
@@ -1076,12 +1404,20 @@
         });
         
         // 初始化
-        onMounted(() => {
+        onMounted(async () => {
+          // 检查登录状态
+          const isAuthenticated = await checkAuth();
+          if (!isAuthenticated) {
+            return;
+          }
+          
           loadDashboard();
           window.addEventListener('resize', resizeCharts);
         });
         
         return {
+          userInfo,
+          handleUserCommand,
           activeMenu,
           dateRange,
           feeType,
@@ -1112,7 +1448,15 @@
           handleTransferApprove,
           handleTransferReject,
           handleSizeChange,
-          handleCurrentChange
+          handleCurrentChange,
+          // AI助手相关
+          aiAssistantVisible,
+          aiMessages,
+          aiInputMessage,
+          aiLoading,
+          aiMessageContainer,
+          sendAIMessage,
+          formatTime
         };
       }
     });

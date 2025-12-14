@@ -21,10 +21,12 @@ app.use(bodyParser.urlencoded({ extended: true }));
 db.init();
 
 // 路由
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/drg', require('./routes/drg'));
 app.use('/api/rehabilitation', require('./routes/rehabilitation'));
 app.use('/api/risk', require('./routes/risk'));
+app.use('/api/ai-assistant', require('./routes/ai-assistant'));
 
 // 健康检查
 app.get('/health', (req, res) => {
