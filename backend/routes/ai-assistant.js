@@ -3,9 +3,11 @@ const router = express.Router();
 const axios = require('axios');
 
 // 大模型API配置（可以通过环境变量配置）
-const AI_API_URL = process.env.AI_API_URL || 'https://api.openai.com/v1/chat/completions';
+// 硅基流动API配置
+const AI_API_URL = process.env.AI_API_URL || 'https://api.siliconflow.cn/v1/chat/completions';
 const AI_API_KEY = process.env.AI_API_KEY || '';
-const AI_MODEL = process.env.AI_MODEL || 'gpt-3.5-turbo';
+// 硅基流动支持的模型名称：deepseek-chat, DeepSeek-V3.2, deepseek-chat-v3 等
+const AI_MODEL = process.env.AI_MODEL || 'deepseek-ai/DeepSeek-V3.2-Exp';
 
 // 医保欺诈检测的系统提示词（管理员使用）
 const SYSTEM_PROMPT_ADMIN = `你是一位专业的医保欺诈检测AI助手。你的职责是：
@@ -51,23 +53,26 @@ async function callAIModel(userMessage, context = {}) {
       fullMessage += `\n\n可选医院列表：\n${JSON.stringify(context.hospitals, null, 2)}`;
     }
 
+    // 构建请求体
+    const requestBody = {
+      model: AI_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: fullMessage
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000
+    };
+
     const response = await axios.post(
       AI_API_URL,
-      {
-        model: AI_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: fullMessage
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000
-      },
+      requestBody,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -77,16 +82,57 @@ async function callAIModel(userMessage, context = {}) {
       }
     );
 
-    return response.data.choices[0].message.content;
+    // 检查响应格式
+    if (response.data && response.data.choices && response.data.choices.length > 0) {
+      return response.data.choices[0].message.content;
+    } else if (response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].message) {
+      return response.data.choices[0].message.content;
+    } else {
+      console.error('API响应格式异常:', response.data);
+      throw new Error('AI服务返回格式异常');
+    }
   } catch (error) {
-    console.error('调用大模型API失败:', error.response?.data || error.message);
+    // 详细记录错误信息
+    const errorDetails = {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      url: AI_API_URL,
+      model: AI_MODEL
+    };
+    
+    console.error('调用大模型API失败:', errorDetails);
+    console.error('完整错误响应:', JSON.stringify(error.response?.data, null, 2));
     
     // 如果API调用失败，返回模拟响应（用于开发测试）
     if (!AI_API_KEY || AI_API_KEY === '') {
       return generateMockResponse(userMessage, context);
     }
     
-    throw new Error('AI服务暂时不可用，请稍后重试');
+    // 如果是400错误，可能是模型名称或请求格式问题
+    if (error.response?.status === 400) {
+      const errorMsg = error.response?.data?.error?.message || error.response?.data?.message || '请求参数错误';
+      console.error('400错误详情:', errorMsg);
+      throw new Error(`API请求参数错误: ${errorMsg}。请检查模型名称是否正确，当前模型: ${AI_MODEL}`);
+    }
+    
+    // 如果是401或403错误，说明API密钥有问题
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      throw new Error('API密钥无效，请检查配置');
+    }
+    
+    // 如果是429错误，说明请求频率过高
+    if (error.response?.status === 429) {
+      throw new Error('请求频率过高，请稍后重试');
+    }
+    
+    // 其他错误
+    const errorMessage = error.response?.data?.error?.message 
+      || error.response?.data?.message 
+      || error.message 
+      || 'AI服务暂时不可用，请稍后重试';
+    throw new Error(errorMessage);
   }
 }
 
