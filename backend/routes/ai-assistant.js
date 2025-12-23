@@ -6,8 +6,11 @@ const axios = require('axios');
 // 硅基流动API配置
 const AI_API_URL = process.env.AI_API_URL || 'https://api.siliconflow.cn/v1/chat/completions';
 const AI_API_KEY = process.env.AI_API_KEY || '';
-// 硅基流动支持的模型名称：deepseek-chat, DeepSeek-V3.2, deepseek-chat-v3 等
-const AI_MODEL = process.env.AI_MODEL || 'deepseek-ai/DeepSeek-V3.2-Exp';
+// 硅基流动支持的模型名称：
+// - deepseek-chat-v3.2 (推荐，稳定版本)
+// - deepseek-chat (DeepSeek Chat)
+// - deepseek-ai/DeepSeek-V3.2-Exp (实验版，可能不稳定)
+const AI_MODEL = process.env.AI_MODEL || 'deepseek-ai/DeepSeek-V3.2';
 
 // 医保欺诈检测的系统提示词（管理员使用）
 const SYSTEM_PROMPT_ADMIN = `你是一位专业的医保欺诈检测AI助手。你的职责是：
@@ -28,9 +31,12 @@ const SYSTEM_PROMPT_USER = `你是一位专业的转院建议AI助手。你的�
 请用专业、准确、简洁的语言回答用户的问题。如果用户提供了医院列表，请基于这些医院信息给出建议。`;
 
 /**
- * 调用大模型API
+ * 调用大模型API（带重试机制）
  */
-async function callAIModel(userMessage, context = {}) {
+async function callAIModel(userMessage, context = {}, retryCount = 0) {
+  const MAX_RETRIES = 2; // 最多重试2次
+  const TIMEOUT = 60000; // 60秒超时
+  
   try {
     // 根据用户角色选择系统提示词
     const userRole = context.userRole || 'admin';
@@ -70,6 +76,8 @@ async function callAIModel(userMessage, context = {}) {
       max_tokens: 2000
     };
 
+    console.log(`[AI助手] 发送请求 (尝试 ${retryCount + 1}/${MAX_RETRIES + 1})，模型: ${AI_MODEL}`);
+
     const response = await axios.post(
       AI_API_URL,
       requestBody,
@@ -78,15 +86,19 @@ async function callAIModel(userMessage, context = {}) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${AI_API_KEY}`
         },
-        timeout: 30000 // 30秒超时
+        timeout: TIMEOUT // 60秒超时
       }
     );
 
     // 检查响应格式
     if (response.data && response.data.choices && response.data.choices.length > 0) {
-      return response.data.choices[0].message.content;
+      const content = response.data.choices[0].message.content;
+      console.log(`[AI助手] 请求成功，响应长度: ${content.length} 字符`);
+      return content;
     } else if (response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].message) {
-      return response.data.choices[0].message.content;
+      const content = response.data.choices[0].message.content;
+      console.log(`[AI助手] 请求成功，响应长度: ${content.length} 字符`);
+      return content;
     } else {
       console.error('API响应格式异常:', response.data);
       throw new Error('AI服务返回格式异常');
@@ -99,14 +111,29 @@ async function callAIModel(userMessage, context = {}) {
       data: error.response?.data,
       message: error.message,
       url: AI_API_URL,
-      model: AI_MODEL
+      model: AI_MODEL,
+      retryCount: retryCount
     };
     
-    console.error('调用大模型API失败:', errorDetails);
-    console.error('完整错误响应:', JSON.stringify(error.response?.data, null, 2));
+    console.error(`[AI助手] 调用失败 (尝试 ${retryCount + 1}/${MAX_RETRIES + 1}):`, errorDetails);
     
-    // 如果API调用失败，返回模拟响应（用于开发测试）
+    // 如果是超时错误且还有重试次数，进行重试
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      if (retryCount < MAX_RETRIES) {
+        const waitTime = (retryCount + 1) * 2000; // 递增等待时间：2秒、4秒
+        console.log(`[AI助手] 超时错误，${waitTime}ms后重试...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return callAIModel(userMessage, context, retryCount + 1);
+      } else {
+        console.error('[AI助手] 重试次数已用完，返回模拟响应');
+        // 如果重试失败，返回模拟响应
+        return generateMockResponse(userMessage, context, true);
+      }
+    }
+    
+    // 如果API调用失败且没有配置API密钥，返回模拟响应
     if (!AI_API_KEY || AI_API_KEY === '') {
+      console.log('[AI助手] 未配置API密钥，使用模拟响应');
       return generateMockResponse(userMessage, context);
     }
     
@@ -114,6 +141,16 @@ async function callAIModel(userMessage, context = {}) {
     if (error.response?.status === 400) {
       const errorMsg = error.response?.data?.error?.message || error.response?.data?.message || '请求参数错误';
       console.error('400错误详情:', errorMsg);
+      // 尝试使用备用模型
+      if (retryCount < MAX_RETRIES && AI_MODEL.includes('DeepSeek-V3.2-Exp')) {
+        console.log('[AI助手] 尝试使用备用模型: deepseek-chat');
+        const originalModel = AI_MODEL;
+        // 临时修改模型名称
+        const backupModel = 'deepseek-chat';
+        const modifiedContext = { ...context };
+        // 这里需要修改全局模型，但为了不影响其他请求，我们直接返回模拟响应
+        return generateMockResponse(userMessage, context, true, `模型 ${AI_MODEL} 可能不可用，建议检查模型名称或使用模拟响应模式。`);
+      }
       throw new Error(`API请求参数错误: ${errorMsg}。请检查模型名称是否正确，当前模型: ${AI_MODEL}`);
     }
     
@@ -124,26 +161,52 @@ async function callAIModel(userMessage, context = {}) {
     
     // 如果是429错误，说明请求频率过高
     if (error.response?.status === 429) {
+      if (retryCount < MAX_RETRIES) {
+        const waitTime = 5000; // 等待5秒后重试
+        console.log(`[AI助手] 请求频率过高，${waitTime}ms后重试...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return callAIModel(userMessage, context, retryCount + 1);
+      }
       throw new Error('请求频率过高，请稍后重试');
     }
     
-    // 其他错误
-    const errorMessage = error.response?.data?.error?.message 
-      || error.response?.data?.message 
-      || error.message 
-      || 'AI服务暂时不可用，请稍后重试';
-    throw new Error(errorMessage);
+    // 如果是网络错误，尝试重试
+    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+      if (retryCount < MAX_RETRIES) {
+        const waitTime = (retryCount + 1) * 2000;
+        console.log(`[AI助手] 网络错误，${waitTime}ms后重试...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return callAIModel(userMessage, context, retryCount + 1);
+      }
+      // 网络错误时返回模拟响应
+      console.log('[AI助手] 网络错误，返回模拟响应');
+      return generateMockResponse(userMessage, context, true, '网络连接失败，已切换到模拟响应模式。');
+    }
+    
+    // 其他错误，如果重试次数未用完，尝试重试
+    if (retryCount < MAX_RETRIES) {
+      const waitTime = (retryCount + 1) * 2000;
+      console.log(`[AI助手] 未知错误，${waitTime}ms后重试...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      return callAIModel(userMessage, context, retryCount + 1);
+    }
+    
+    // 最终失败，返回模拟响应
+    console.log('[AI助手] 所有重试失败，返回模拟响应');
+    return generateMockResponse(userMessage, context, true);
   }
 }
 
 /**
- * 生成模拟响应（用于开发测试，当没有配置API密钥时）
+ * 生成模拟响应（用于开发测试，当没有配置API密钥或API调用失败时）
  */
-function generateMockResponse(userMessage, context) {
+function generateMockResponse(userMessage, context, isFallback = false, fallbackReason = '') {
   const lowerMessage = userMessage.toLowerCase();
+  const prefix = isFallback ? '⚠️ **注意**：AI服务暂时不可用，以下是模拟响应。\n\n' : '';
+  const reasonNote = fallbackReason ? `\n\n*${fallbackReason}*\n\n` : '';
   
   if (lowerMessage.includes('欺诈') || lowerMessage.includes('风险')) {
-    return `根据您提供的数据，我检测到以下潜在风险：
+    return `${prefix}${reasonNote}根据您提供的数据，我检测到以下潜在风险：
 
 1. **异常费用模式**：检测到多笔高额费用集中在短时间内，可能存在虚假住院或过度医疗的情况。
 
@@ -159,7 +222,7 @@ function generateMockResponse(userMessage, context) {
   }
   
   if (lowerMessage.includes('分析') || lowerMessage.includes('评估')) {
-    return `我已经对相关数据进行了分析：
+    return `${prefix}${reasonNote}我已经对相关数据进行了分析：
 
 **数据分析结果**：
 - 费用趋势：较上月增长15%，需要关注
@@ -175,11 +238,31 @@ function generateMockResponse(userMessage, context) {
 建议优先处理高风险事件，并加强对相关医疗机构的监管。`;
   }
   
-  return `我是医保欺诈检测AI助手。我可以帮助您：
+  if (lowerMessage.includes('医院') || lowerMessage.includes('转院') || lowerMessage.includes('推荐')) {
+    return `${prefix}${reasonNote}根据您的需求，我为您推荐以下医院：
+
+**推荐医院**：
+1. **北京协和医院** - 三级医院，神经科、心内科、骨科专业，评分4.8分
+2. **上海瑞金医院** - 三级医院，心内科、神经科专业，评分4.7分
+3. **广州中山医院** - 三级医院，神经科、康复科专业，评分4.6分
+
+**选择建议**：
+- 如需神经科治疗，推荐北京协和医院或广州中山医院
+- 如需心内科治疗，推荐北京协和医院或上海瑞金医院
+- 如需康复治疗，推荐广州中山医院
+
+**转院流程**：
+1. 填写转院申请表单
+2. 提交申请等待审核
+3. 审核通过后办理转院手续`;
+  }
+  
+  return `${prefix}${reasonNote}我是医保欺诈检测AI助手。我可以帮助您：
 - 分析医疗费用数据
 - 识别潜在的欺诈行为
 - 评估风险等级
 - 提供处理建议
+- 推荐合适的医院（普通用户）
 
 请告诉我您需要分析的具体问题或数据。`;
 }

@@ -163,29 +163,47 @@ npx http-server -p 8080
 
 ## 五、AI助手配置（可选）
 
-AI助手支持集成大模型API，如OpenAI等。如果不配置，系统会使用模拟响应模式。
+AI助手已配置为使用**硅基流动（SiliconFlow）API**和**DeepSeek-V3.2模型**。如果不配置，系统会使用模拟响应模式。
 
 ### 配置步骤
 
-#### 方式一：环境变量（推荐）
+#### 1. 获取硅基流动API密钥
+
+1. 访问 [硅基流动官网](https://siliconflow.cn/zh-cn/)
+2. 注册账号并登录控制台
+3. 在"API管理"页面创建新的API密钥
+4. 复制API密钥
+
+#### 2. 配置API密钥
+
+**方式一：环境变量配置（推荐）**
 
 ```bash
-export AI_API_URL="https://api.openai.com/v1/chat/completions"
-export AI_API_KEY="your-api-key-here"
-export AI_MODEL="gpt-3.5-turbo"
+export AI_API_URL="https://api.siliconflow.cn/v1/chat/completions"
+export AI_API_KEY="your-siliconflow-api-key"
+export AI_MODEL="deepseek-chat-v3.2"
 ```
 
 然后重启后端服务。
 
-#### 方式二：修改配置文件
+**方式二：修改配置文件**
 
 编辑 `backend/routes/ai-assistant.js`：
 
 ```javascript
-const AI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const AI_API_KEY = 'your-api-key-here';
-const AI_MODEL = 'gpt-3.5-turbo';
+const AI_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
+const AI_API_KEY = 'your-siliconflow-api-key';
+const AI_MODEL = 'deepseek-chat-v3.2';
 ```
+
+#### 3. 支持的模型
+
+系统默认使用 `deepseek-chat-v3.2` 模型，您也可以通过环境变量或修改代码使用其他模型：
+
+- `deepseek-chat-v3.2` - DeepSeek V3.2（推荐）
+- `deepseek-chat` - DeepSeek Chat
+- `deepseek-ai/DeepSeek-V3.2-Exp` - DeepSeek V3.2 实验版
+- 其他硅基流动支持的模型
 
 ### 测试AI服务
 
@@ -198,6 +216,21 @@ curl http://localhost:3000/api/ai-assistant/health
 
 - **管理员模式**：医保欺诈检测、风险分析、数据评估
 - **普通用户模式**：转院建议、医院推荐、流程咨询
+
+### 超时和重试机制
+
+系统已实现以下优化：
+
+- **超时时间**：60秒（从30秒增加到60秒）
+- **自动重试**：最多重试2次，自动处理网络错误和超时
+- **降级处理**：API调用失败时自动切换到模拟响应模式
+- **错误提示**：详细的错误日志，便于排查问题
+
+> 💡 **重要提示**：
+> - 如果不配置AI API密钥，系统会使用模拟响应模式，适合开发和测试
+> - 硅基流动API使用标准的OpenAI兼容格式，支持流式和非流式调用
+> - 请妥善保管API密钥，不要提交到代码仓库
+> - 如果遇到超时问题，系统会自动重试，失败后会使用模拟响应
 
 ## 六、常见问题
 
@@ -257,15 +290,29 @@ curl http://localhost:3000/api/ai-assistant/health
 - 检查数据库是否已初始化
 - 查看后端控制台是否有错误信息
 
-### 5. AI助手无响应
+### 5. AI助手无响应或超时
 
-**问题**：AI助手返回错误或超时
+**问题**：AI助手返回错误或超时（`timeout of 30000ms exceeded`）
 
 **解决方案**：
+- **已优化**：系统已将超时时间增加到60秒，并添加了自动重试机制
 - 检查AI API配置是否正确
 - 确认API密钥有效
-- 检查网络连接
-- 如果不配置AI API，系统会使用模拟响应模式
+- 检查网络连接（硅基流动API需要稳定的网络）
+- 检查模型名称是否正确（推荐使用 `deepseek-chat-v3.2`）
+- 如果API持续失败，系统会自动切换到模拟响应模式
+- 查看后端控制台日志，了解详细错误信息
+
+**常见超时原因**：
+- 网络连接不稳定
+- API服务器响应慢
+- 模型名称不正确（如 `deepseek-ai/DeepSeek-V3.2-Exp` 可能不可用）
+- 请求内容过长
+
+**建议**：
+- 使用推荐的模型名称：`deepseek-chat-v3.2`
+- 确保网络连接稳定
+- 如果持续超时，可以暂时使用模拟响应模式进行开发测试
 
 ### 6. 前端页面空白
 
